@@ -104,3 +104,21 @@ def serve(monkeypatch, replies: dict) -> Served:
 
     monkeypatch.setattr(outside, "_fetch", fetch)
     return served
+
+
+# Whole replies for the league pages on Monday 2030-01-07
+SA_TABLE = standings(row(1, INTER, 19, 14, 3, 2, 25, 45), row(2, NAPOLI, 19, 13, 3, 3, 18, 42),
+                     row(3, ROMA, 19, 12, 4, 3, 20, 40), row(4, MILAN, 19, 11, 4, 4, 12, 37),
+                     row(5, LAZIO, 19, 10, 3, 6, 5, 33))
+SA_ROUNDS = matches(
+    match(301, "2030-01-04T19:45:00Z", "FINISHED", MILAN, NAPOLI, (0, 2), 19),
+    match(208, "2030-01-05T17:00:00Z", "FINISHED", INTER, ROMA, (2, 1), 19),
+    match(209, "2030-01-12T19:45:00Z", "TIMED", ROMA, MILAN, None, 20),
+    match(302, "2030-01-12T17:00:00Z", "TIMED", NAPOLI, LAZIO, None, 20))
+REAL_MADRID = team(86, "Real Madrid CF", "Real Madrid")
+BARCELONA = team(81, "FC Barcelona", "Barça")
+PD_TABLE = standings(row(1, REAL_MADRID, 19, 15, 2, 2, 30, 47), row(2, BARCELONA, 19, 14, 3, 2, 28, 45))
+BAYERN = team(5, "FC Bayern München", "Bayern")
+CL_GAME = match(401, "2030-01-21T20:00:00Z", "TIMED", ROMA, BAYERN, None, 7,
+                code="CL", name="UEFA Champions League")
+CL_TABLE = standings(row(1, BAYERN, 6, 5, 1, 0, 10, 16), row(9, ROMA, 6, 3, 1, 2, 2, 10))

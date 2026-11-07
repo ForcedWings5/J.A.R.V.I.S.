@@ -3,8 +3,9 @@ never from the real .env in a test (conftest.py points JARVIS_ENV at an empty fi
 Spec: docs/specs/2026-11-07-sports-space.md.
 """
 import os
+import types
 import urllib.error
-from datetime import datetime  # noqa: F401  (used by later tests)
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -226,3 +227,94 @@ def test_the_season_has_started_once_a_game_is_played():
     assert not football.season_started(football._table(data.standings(data.row(1, data.ROMA, 0, 0, 0, 0, 0, 0))))
     assert football.season_started(football._table(data.standings(data.row(1, data.ROMA, 1, 1, 0, 0, 2, 3))))
     assert not football.season_started([])
+
+
+# ---------- the cache, the earlier copy, and the league page ----------
+
+def serie_a(cl=False):
+    """The replies for Serie A's page on 2030-01-07; Roma has Champions League games if cl."""
+    roma = list(data.ROMA_SEASON) + ([data.CL_GAME] if cl else [])
+    return {"/competitions/SA/standings": data.SA_TABLE, "/competitions/SA/matches": data.SA_ROUNDS,
+            "/teams/100/matches": data.matches(*roma), "/competitions/CL/standings": data.CL_TABLE}
+
+
+@pytest.fixture
+def cache_clock(monkeypatch):
+    """The cache's clock, moved by hand (not conftest's `clock`, which freezes the calendar)."""
+    now = types.SimpleNamespace(t=1000.0)
+    monkeypatch.setattr(football, "monotonic", lambda: now.t)
+    return now
+
+
+def test_a_general_page_costs_two_requests(monkeypatch, frozen):
+    served = data.serve(monkeypatch, {"/competitions/PD/standings": data.PD_TABLE,
+                                      "/competitions/PD/matches": data.matches()})
+    page = football.league_page("la-liga")
+    assert len(served.calls) == 2 and page["team"] is None
+    assert served.calls[1][0].endswith("?dateFrom=2029-12-28&dateTo=2030-01-17")
+    assert page["league"] == {"slug": "la-liga", "name": "La Liga", "country": "Spain"}
+    assert page["credit"] == "Football data provided by the Football-Data.org API"
+    assert page["updated"] == "2030-01-07T08:00" and page["earlier"] is None
+    assert [r["team"]["name"] for r in page["table"]] == ["Real Madrid", "Barça"]
+    assert page["season_started"] is True
+
+
+@pytest.mark.parametrize("cl, requests", [(False, 3), (True, 4)])
+def test_a_themed_page_asks_for_the_champions_league_only_when_needed(monkeypatch, frozen, cl, requests):
+    served = data.serve(monkeypatch, serie_a(cl))
+    page = football.league_page("serie-a")
+    assert len(served.calls) == requests and page["team"]["name"] == "Roma"
+    assert (page["team"]["champions_league"] is not None) == cl
+    assert "dateFrom=2029-11-08&dateTo=2030-03-08" in served.calls[2][0]
+    assert page["results"]["matchday"] == 19 and page["upcoming"]["matchday"] == 20
+
+
+def test_a_second_look_within_ten_minutes_costs_nothing(monkeypatch, frozen, cache_clock):
+    served = data.serve(monkeypatch, serie_a())
+    football.league_page("serie-a")
+    cache_clock.t += 599
+    football.league_page("serie-a")
+    assert len(served.calls) == 3
+    cache_clock.t += 2
+    football.league_page("serie-a")
+    assert len(served.calls) == 6
+
+
+def test_a_live_match_is_kept_two_minutes(monkeypatch, frozen, cache_clock):
+    live = data.matches(data.match(9, "2030-01-07T07:00:00Z", "IN_PLAY", data.REAL_MADRID,
+                                   data.BARCELONA, (1, 0), 20))
+    served = data.serve(monkeypatch, {"/competitions/PD/standings": data.PD_TABLE,
+                                      "/competitions/PD/matches": live})
+    football.league_page("la-liga")
+    cache_clock.t += 121
+    football.league_page("la-liga")
+    assert sum("/matches" in a for a, _ in served.calls) == 2
+    assert sum("/standings" in a for a, _ in served.calls) == 1
+
+
+def test_an_earlier_copy_is_used_when_the_service_fails(monkeypatch, frozen, cache_clock):
+    data.serve(monkeypatch, serie_a())
+    good = football.league_page("serie-a")
+    cache_clock.t += 3600
+    monkeypatch.setattr(football, "_now", lambda: datetime(2030, 1, 7, 9, 0))
+    data.serve(monkeypatch, {k: TimeoutError() for k in serie_a()})
+    later = football.league_page("serie-a")
+    assert later["earlier"] == "08:00" and later["table"] == good["table"]
+    cache_clock.t += 21_600
+    with pytest.raises(football.FootballError, match="Couldn't reach the football data."):
+        football.league_page("serie-a")
+
+
+def test_a_refused_key_never_falls_back_to_an_earlier_copy(monkeypatch, frozen):
+    data.serve(monkeypatch, serie_a())
+    football.league_page("serie-a")
+    football._fresh.clear()             # only the earlier copy remains
+    refused = urllib.error.HTTPError(STANDINGS, 403, "x", {}, None)
+    data.serve(monkeypatch, {k: refused for k in serie_a()})
+    with pytest.raises(football.FootballError, match="refused"):
+        football.league_page("serie-a")
+
+
+def test_an_unknown_league_is_refused():
+    with pytest.raises(ValueError):
+        football.league_page("eredivisie")

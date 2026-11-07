@@ -21,6 +21,7 @@ import database  # noqa: E402
 import jcal  # noqa: E402
 # Registers every tool in the order the app uses, whichever test file runs first
 import brain  # noqa: E402, F401
+import football  # noqa: E402
 import outside  # noqa: E402
 import weather  # noqa: E402  (after brain, which imports it last: its tools come last)
 
@@ -66,4 +67,5 @@ def no_internet(monkeypatch):
         raise AssertionError(f"a test tried to reach the internet: {address}")
     monkeypatch.setattr(outside, "_fetch", refuse)
     outside.forget_rate_guard()     # no requests counted from another test
+    football.forget_everything()    # no football replies kept from another test
     weather.forget_everything()     # no cache, ids or place carried over from another test

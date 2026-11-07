@@ -7,7 +7,10 @@ come in a later stage. Spec: docs/specs/2026-11-07-sports-space.md.
 """
 import os
 import re
-from datetime import datetime
+import threading
+from collections import OrderedDict
+from datetime import datetime, timedelta
+from time import monotonic   # its own name, so tests can move the cache's clock
 
 import config
 import outside
@@ -258,3 +261,116 @@ def team_block(slug: str, table: list[dict], team_matches: list[dict],
 
 def season_started(table: list[dict]) -> bool:
     return any((r["played"] or 0) > 0 for r in table)
+
+
+# ---------- the cache, the earlier copy, and the league page ----------
+
+CREDIT = "Football data provided by the Football-Data.org API"
+_LIVE_STATUSES = {"IN_PLAY", "PAUSED", "EXTRA_TIME", "PENALTY_SHOOTOUT"}
+
+# All in memory, never in jarvis.db. _fresh: (address, params) -> (expires, fetched_at, reply),
+# kept 10 minutes (2 while a match is live). _earlier: address -> the same, kept 6 hours, shown
+# when the service fails. By address alone, so it survives the date window moving at midnight.
+_fresh: OrderedDict = OrderedDict()
+_earlier: OrderedDict = OrderedDict()
+_lock = threading.Lock()
+
+
+def forget_everything() -> None:
+    """For the tests: nothing kept from another test."""
+    with _lock:
+        _fresh.clear()
+        _earlier.clear()
+
+
+def _keep(store: OrderedDict, key, expires: float, fetched: datetime, reply: dict) -> None:
+    """Store, dropping expired entries first, then the oldest beyond the cap."""
+    now = monotonic()
+    for old in [k for k, (until, _, _) in store.items() if until <= now]:
+        del store[old]
+    store[key] = (expires, fetched, reply)
+    store.move_to_end(key)
+    while len(store) > config.FOOTBALL_CACHE_ENTRIES:
+        store.popitem(last=False)
+
+
+def _is_live(reply: dict) -> bool:
+    games = outside.obj(reply).get("matches")
+    return isinstance(games, list) and any(
+        outside.text(outside.obj(g).get("status")) in _LIVE_STATUSES for g in games)
+
+
+def _fetched(address: str, params: dict) -> tuple[dict, datetime, bool]:
+    """A reply, when it was fetched, and whether it is an earlier copy standing in for a
+    failed request. A missing or refused key never falls back to an earlier copy: the owner
+    must see that problem. Failures are not kept, so the next look asks again."""
+    key = (address, tuple(sorted(params.items())))
+    with _lock:
+        hit = _fresh.get(key)
+        if hit and hit[0] > monotonic():
+            return hit[2], hit[1], False
+    try:
+        reply = _get(address, params)          # outside the lock: this may wait on the network
+    except FootballError as e:
+        if e.kind in ("busy", "unreachable"):
+            with _lock:
+                old = _earlier.get(address)
+                if old and old[0] > monotonic():
+                    return old[2], old[1], True
+        raise
+    fetched, now = _now(), monotonic()
+    keep = config.FOOTBALL_LIVE_CACHE_SECONDS if _is_live(reply) else config.FOOTBALL_CACHE_SECONDS
+    with _lock:
+        _keep(_fresh, key, now + keep, fetched, reply)
+        _keep(_earlier, address, now + config.FOOTBALL_EARLIER_COPY_SECONDS, fetched, reply)
+    return reply, fetched, False
+
+
+def _matches_in(reply) -> list[dict]:
+    games = outside.obj(reply).get("matches")
+    return [m for m in map(_match, games if isinstance(games, list) else []) if m]
+
+
+def league_page(slug: str) -> dict:
+    """Everything a league page shows. A general league costs 2 requests; a themed one 3, or 4
+    when the team has Champions League games in its window."""
+    league = config.FOOTBALL_LEAGUES.get(slug)
+    if league is None:
+        raise ValueError(f"not a league: {slug}")
+    today = _now().date()
+    used = []                                   # (fetched_at, earlier) for each reply
+
+    def ask(address: str, params: dict | None = None) -> dict:
+        reply, fetched, earlier = _fetched(address, params or {})
+        used.append((fetched, earlier))
+        return reply
+
+    def window(days: int) -> dict:
+        return {"dateFrom": (today - timedelta(days=days)).isoformat(),
+                "dateTo": (today + timedelta(days=days)).isoformat()}
+
+    api, code = config.FOOTBALL_API, league["code"]
+    table = _table(ask(f"{api}/competitions/{code}/standings"))
+    games = _matches_in(ask(f"{api}/competitions/{code}/matches", window(config.FOOTBALL_WINDOW_DAYS)))
+    team = None
+    followed = next((s for s, t in config.FOOTBALL_TEAMS.items() if t["league"] == slug), None)
+    if followed:
+        team_id = config.FOOTBALL_TEAMS[followed]["id"]
+        team_games = _matches_in(ask(f"{api}/teams/{team_id}/matches",
+                                     window(config.FOOTBALL_TEAM_WINDOW_DAYS)))
+        cl = None
+        if any(m["code"] == "CL" for m in team_games):
+            cl = _table(ask(f"{api}/competitions/CL/standings"))
+        team = team_block(followed, table, team_games, cl)
+    earlier = [fetched for fetched, was_earlier in used if was_earlier]
+    return {
+        "league": {"slug": slug, "name": league["name"], "country": league["country"]},
+        "season_started": season_started(table),
+        "table": table,
+        "results": latest_round(games),
+        "upcoming": next_round(games),
+        "team": team,
+        "updated": min(fetched for fetched, _ in used).strftime("%Y-%m-%dT%H:%M"),
+        "earlier": min(earlier).strftime("%H:%M") if earlier else None,
+        "credit": CREDIT,
+    }
