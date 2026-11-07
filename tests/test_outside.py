@@ -7,6 +7,7 @@ import http.server
 import logging
 import ssl
 import threading
+import types
 import urllib.error
 import urllib.request
 
@@ -101,6 +102,64 @@ def test_each_request_is_logged_without_its_address(monkeypatch, caplog):
     with caplog.at_level(logging.INFO, logger="jarvis.outside"):
         outside.get(config.WEATHER_GEOCODE_URL, {"name": "Paris"})
     assert "geocoding-api.open-meteo.com" in caplog.text and "Paris" not in caplog.text
+
+
+# ---------- the rate guard ----------
+
+@pytest.fixture
+def minute(monkeypatch):
+    """A clock the test moves by hand."""
+    now = types.SimpleNamespace(t=1000.0)
+    monkeypatch.setattr(outside, "monotonic", lambda: now.t)
+    return now
+
+
+def test_the_tenth_football_request_in_a_minute_is_refused_unsent(monkeypatch, minute, caplog):
+    seen = fake_fetch(monkeypatch, b"{}")
+    for _ in range(9):
+        outside.get(FOOT, {})
+    with caplog.at_level(logging.INFO, logger="jarvis.outside"):
+        with pytest.raises(outside.OutsideError, match="busy"):
+            outside.get(FOOT, {})
+    assert len(seen) == 9 and "rate guard" in caplog.text
+    minute.t += 60.01
+    outside.get(FOOT, {})
+    assert len(seen) == 10
+
+
+def test_failed_requests_count_too(monkeypatch, minute):
+    fake_fetch(monkeypatch, TimeoutError())
+    for _ in range(9):
+        with pytest.raises(outside.OutsideError, match="unreachable"):
+            outside.get(FOOT, {})
+    with pytest.raises(outside.OutsideError, match="busy"):
+        outside.get(FOOT, {})
+
+
+def test_open_meteo_has_no_guard(monkeypatch, minute):
+    seen = fake_fetch(monkeypatch, b"{}")
+    for _ in range(20):
+        outside.get(config.WEATHER_FORECAST_URL, {"latitude": 1})
+    assert len(seen) == 20
+
+
+def test_the_guard_holds_with_requests_at_the_same_time(monkeypatch, minute):
+    seen = fake_fetch(monkeypatch, b"{}")
+    results = []
+
+    def ask():
+        try:
+            outside.get(FOOT, {})
+            results.append("ok")
+        except outside.OutsideError as e:
+            results.append(e.kind)
+
+    threads = [threading.Thread(target=ask) for _ in range(20)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert results.count("ok") == 9 and results.count("busy") == 11 and len(seen) == 9
 
 
 # ---------- how the door itself connects (moved from test_weather.py) ----------

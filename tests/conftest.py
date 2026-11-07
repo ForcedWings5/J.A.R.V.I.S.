@@ -61,4 +61,5 @@ def no_internet(monkeypatch):
     def refuse(address, headers=None):
         raise AssertionError(f"a test tried to reach the internet: {address}")
     monkeypatch.setattr(outside, "_fetch", refuse)
+    outside.forget_rate_guard()     # no requests counted from another test
     weather.forget_everything()     # no cache, ids or place carried over from another test

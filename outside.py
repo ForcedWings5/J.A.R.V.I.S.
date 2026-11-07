@@ -8,10 +8,13 @@ service (docs/specs/2026-11-07-sports-space.md), so there is still exactly one p
 import json
 import logging
 import ssl
+import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections import deque
+from time import monotonic   # its own name, so tests can move the guard's clock
 
 import truststore
 
@@ -21,6 +24,14 @@ log = logging.getLogger("jarvis.outside")
 
 ADDRESSES = frozenset((config.WEATHER_GEOCODE_URL, config.WEATHER_FORECAST_URL,
                        config.WEATHER_AIR_URL, *config.FOOTBALL_ADDRESSES))
+
+# The rate guard: football-data.org's free plan allows 10 requests a minute, and going over can
+# get the key blocked. JARVIS allows itself 9 (one spare for clock differences) and refuses the
+# next *before* it is sent. A request that was sent counts even if it failed. Open-Meteo has no
+# limit JARVIS could reach, so no guard.
+_LIMITS = {"api.football-data.org": config.FOOTBALL_REQUESTS_PER_MINUTE}
+_sent: dict[str, deque] = {}            # host -> when its recent requests were sent
+_guard_lock = threading.Lock()          # the server answers requests in threads
 
 # HTTP statuses that mean "your key was not accepted", and "too many requests"
 _REFUSED = {400, 401, 403}
@@ -75,12 +86,37 @@ def _kind(error: Exception) -> str:
     return "unreachable"
 
 
+def forget_rate_guard() -> None:
+    """Start counting afresh (tests, between one test and the next)."""
+    with _guard_lock:
+        _sent.clear()
+
+
+def _admit(host: str) -> bool:
+    """Record a request about to be sent, unless the host's limit for this minute is used up."""
+    limit = _LIMITS.get(host)
+    if limit is None:
+        return True
+    with _guard_lock:
+        now = monotonic()
+        times = _sent.setdefault(host, deque())
+        while times and times[0] <= now - 60:
+            times.popleft()
+        if len(times) >= limit:
+            return False
+        times.append(now)
+        return True
+
+
 def get(address: str, params: dict, headers: dict[str, str] | None = None) -> dict:
     """Ask one of the fixed addresses; any failure becomes one plain OutsideError."""
     if address not in ADDRESSES:
         raise ValueError("not one of JARVIS's fixed addresses")
     full = address + "?" + urllib.parse.urlencode(params) if params else address
     host = urllib.parse.urlsplit(address).hostname
+    if not _admit(host):
+        log.info("outside request: %s, refused by the rate guard", host)
+        raise OutsideError("busy")
     start = time.monotonic()
     outcome = "ok"
     try:
