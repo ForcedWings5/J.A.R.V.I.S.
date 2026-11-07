@@ -17,6 +17,7 @@ import database  # noqa: E402
 import jcal  # noqa: E402
 # Registers every tool in the order the app uses, whichever test file runs first
 import brain  # noqa: E402, F401
+import outside  # noqa: E402
 import weather  # noqa: E402  (after brain, which imports it last: its tools come last)
 
 
@@ -54,9 +55,10 @@ def clock(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def no_internet(monkeypatch):
-    """Runs before every test: weather's one door to the internet fails loudly, so no test
-    can depend on Open-Meteo (CI has no network to count on, and tests must stay offline)."""
-    def refuse(address):
+    """Runs before every test: JARVIS's one door to the internet (outside.py) fails loudly,
+    so no test can depend on Open-Meteo or football-data.org (CI has no network to count on,
+    and tests must stay offline)."""
+    def refuse(address, headers=None):
         raise AssertionError(f"a test tried to reach the internet: {address}")
-    monkeypatch.setattr(weather, "_fetch", refuse)
+    monkeypatch.setattr(outside, "_fetch", refuse)
     weather.forget_everything()     # no cache, ids or place carried over from another test

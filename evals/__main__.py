@@ -29,6 +29,7 @@ import ollama  # noqa: E402
 import brain  # noqa: E402
 import database  # noqa: E402
 import jcal  # noqa: E402
+import outside  # noqa: E402
 import tools  # noqa: E402
 import weather  # noqa: E402
 from evals.cases import CASES, NOW  # noqa: E402
@@ -37,12 +38,12 @@ from evals import speed  # noqa: E402
 
 RESULTS = Path(__file__).resolve().parent / "results"
 
-# The evals never go online: weather's one door to the internet answers with made-up
-# replies (tests/weather_data.py), the same ones the tests use
+# The evals never go online: JARVIS's one door to the internet (outside.py) answers with
+# made-up replies (tests/weather_data.py), the same ones the tests use
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests"))
 import weather_data  # noqa: E402
 
-weather._fetch = lambda address: weather_data.canned_fetch(address, NOW)
+outside._fetch = lambda address, headers=None: weather_data.canned_fetch(address, NOW)
 
 
 class Clock:

@@ -1,20 +1,16 @@
 """Tests for weather.py: the one door to Open-Meteo, the figures, the places and the cache.
 
-Nothing here goes online: conftest.py makes weather._fetch fail loudly, and each test that
+Nothing here goes online: conftest.py makes the shared door (outside._fetch) fail loudly, and each test that
 needs a reply puts a made-up one in its place (spec: docs/specs/2026-11-05-weather-space.md).
 """
-import http.server
 import json
-import logging
-import ssl
-import threading
 import urllib.error
 import urllib.request
 
 import pytest
-import truststore
 
 import config
+import outside
 import tools
 import weather
 import weather_data as data
@@ -25,13 +21,13 @@ def fake_fetch(monkeypatch, reply):
     """Replace the door with one that records each address and gives `reply` (or raises it)."""
     seen = []
 
-    def fetch(address):
+    def fetch(address, headers=None):
         seen.append(address)
         if isinstance(reply, BaseException):
             raise reply
         return reply
 
-    monkeypatch.setattr(weather, "_fetch", fetch)
+    monkeypatch.setattr(outside, "_fetch", fetch)
     return seen
 
 
@@ -65,61 +61,17 @@ def test_anything_wrong_becomes_one_clear_error(monkeypatch, reply):
         weather._get(config.WEATHER_FORECAST_URL, {"latitude": 1})
 
 
-def test_redirects_are_refused():
-    """A real server on this Mac answers 302; the opener must not follow it."""
-    hits = {"elsewhere": 0}
-
-    class Handler(http.server.BaseHTTPRequestHandler):
-        def do_GET(self):
-            if self.path == "/elsewhere":
-                hits["elsewhere"] += 1
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"{}")
-                return
-            self.send_response(302)
-            self.send_header("Location", "/elsewhere")
-            self.end_headers()
-
-        def log_message(self, *args):
-            pass
-
-    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
-    # A short poll, so shutdown() returns at once instead of after half a second
-    thread = threading.Thread(target=server.serve_forever, args=(0.01,), daemon=True)
-    thread.start()
-    try:
-        with pytest.raises(urllib.error.HTTPError) as caught:
-            weather._OPENER.open(f"http://127.0.0.1:{server.server_port}/start", timeout=2)
-        assert caught.value.code == 302
-        caught.value.close()
-        assert hits["elsewhere"] == 0
-    finally:
-        server.shutdown()
-        server.server_close()
+@pytest.mark.parametrize("code", [400, 403, 429, 500])
+def test_weather_says_the_same_whatever_the_kind(monkeypatch, code):
+    fake_fetch(monkeypatch, urllib.error.HTTPError(config.WEATHER_FORECAST_URL, code, "x", {}, None))
+    with pytest.raises(weather.WeatherError, match="Couldn't reach the weather service."):
+        weather._get(config.WEATHER_FORECAST_URL, {"latitude": 1})
 
 
-
-def test_https_checks_certificates_against_the_macs_trust_list():
-    """python.org's Python has no list of trusted certificate signers of its own, so every
-    request failed (CHANGELOG section 56). The opener checks against macOS's own list, the
-    one Safari uses (the owner's choice), and never skips the check."""
-    https = [h for h in weather._OPENER.handlers if isinstance(h, urllib.request.HTTPSHandler)]
-    assert len(https) == 1
-    context = https[0]._context
-    assert isinstance(context, truststore.SSLContext)
-    assert context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname is True
-
-def test_each_request_is_logged_without_its_address(monkeypatch, caplog):
+def test_weather_cannot_use_footballs_addresses(monkeypatch):
     fake_fetch(monkeypatch, b"{}")
-    with caplog.at_level(logging.INFO, logger="jarvis.weather"):
-        weather._get(config.WEATHER_GEOCODE_URL, {"name": "Paris"})
-    assert "geocoding-api.open-meteo.com" in caplog.text and "Paris" not in caplog.text
-
-
-def test_tests_cannot_reach_the_internet():
-    with pytest.raises(AssertionError, match="internet"):
-        weather._fetch(config.WEATHER_GEOCODE_URL)
+    with pytest.raises(ValueError):
+        weather._get(config.FOOTBALL_ADDRESSES[0], {})
 
 
 # ---------- the figures, worked out in code ----------

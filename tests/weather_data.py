@@ -1,9 +1,9 @@
 """Made-up Open-Meteo replies for the weather tests, shaped like the real ones (field names
-from Open-Meteo's docs, read 2026-11-05), and `serve`, which answers weather._fetch with them."""
+from Open-Meteo's docs, read 2026-11-05), and `serve`, which answers the shared door (outside._fetch) with them."""
 import json
 from datetime import date, datetime, timedelta
 
-import weather
+import outside
 
 PARIS_FR = {"id": 2988507, "name": "Paris", "latitude": 48.85341, "longitude": 2.3488,
             "country_code": "FR", "country": "France", "admin1": "Île-de-France",
@@ -78,12 +78,12 @@ class Served:
 
 
 def serve(monkeypatch, geo=None, forecast=None, air=None) -> Served:
-    """Answer weather._fetch by host: a dict becomes its JSON bytes, an exception is raised,
+    """Answer the shared door (outside._fetch) by host: a dict becomes its JSON bytes, an exception is raised,
     and a request nobody prepared for fails the test."""
     served = Served()
     answers = (("geocoding-api.", geo), ("air-quality-api.", air), ("api.open-meteo.com/", forecast))
 
-    def fetch(address):
+    def fetch(address, headers=None):
         served.addresses.append(address)
         for host, answer in answers:
             if host in address:
@@ -94,7 +94,7 @@ def serve(monkeypatch, geo=None, forecast=None, air=None) -> Served:
                 return json.dumps(answer).encode()
         raise AssertionError(f"unexpected address {address}")
 
-    monkeypatch.setattr(weather, "_fetch", fetch)
+    monkeypatch.setattr(outside, "_fetch", fetch)
     return served
 
 

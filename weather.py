@@ -2,31 +2,24 @@
 
 This is the first module that reads anything from the internet, so it follows the privacy
 rule in SECURITY.md section 5: only three fixed HTTPS addresses (config.py), built here by
-code; requests carry only what the service needs (the place, coordinates rounded to about
+code and fetched through the shared door (outside.py); requests carry only what the service needs (the place, coordinates rounded to about
 1 km); the model never chooses an address. Every figure is worked out here, never by the model.
 JARVIS's two tools are at the end: find_place (the page then asks the user to confirm) and
 get_forecast (facts for the place the user confirmed). Neither can choose a place itself.
 Spec: docs/specs/2026-11-05-weather-space.md.
 """
-import json
 import logging
 import math
 import re
 import secrets
-import ssl
 import threading
-import time
 import unicodedata
-import urllib.error
-import urllib.parse
-import urllib.request
 from collections import OrderedDict
 from datetime import date
 from time import monotonic   # its own name, so tests can move the cache's clock
 
-import truststore
-
 import config
+import outside
 from tools import ShowPlaces, tool
 
 log = logging.getLogger("jarvis.weather")
@@ -39,57 +32,15 @@ class WeatherError(Exception):
     """Something went wrong reaching Open-Meteo. The message is safe to show the user."""
 
 
-class _RefuseRedirects(urllib.request.HTTPRedirectHandler):
-    """urllib normally follows a "go over there instead" reply, which could take JARVIS to
-    another site. Returning None makes it raise HTTPError instead, so the address stays fixed."""
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-
-# HTTPS proves it is really Open-Meteo by a certificate, checked against a list of trusted
-# signers. python.org's Python ships without such a list, so every request was refused.
-# truststore checks against macOS's own list, the one Safari uses (the owner's choice,
-# 2026-11-05), and keeps both checks on: the certificate and the host name.
-_TLS = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-_OPENER = urllib.request.build_opener(_RefuseRedirects, urllib.request.HTTPSHandler(context=_TLS))
-
-
-def _fetch(address: str) -> bytes:
-    """The one door to the internet. Tests replace it (tests/conftest.py)."""
-    with _OPENER.open(address, timeout=config.WEATHER_TIMEOUT_SECONDS) as reply:
-        return reply.read(config.WEATHER_MAX_BYTES + 1)
-
-
-def _refuse_constant(name: str):
-    """Python's json reads NaN and Infinity, which are not real JSON and not real weather."""
-    raise ValueError(f"{name} in a reply")
-
-
 def _get(base: str, params: dict) -> dict:
-    """Ask one of the three fixed addresses; any failure becomes one plain WeatherError."""
+    """Ask one of Weather's three fixed addresses, through the shared door (outside.py); any
+    failure becomes one plain WeatherError, so what Weather says never changes."""
     if base not in ADDRESSES:
         raise ValueError(f"not a weather address: {base}")
-    address = base + "?" + urllib.parse.urlencode(params)
-    host = urllib.parse.urlsplit(base).hostname
-    start = time.monotonic()
-    outcome = "ok"
     try:
-        body = _fetch(address)
-        if len(body) > config.WEATHER_MAX_BYTES:
-            raise ValueError("reply too large")
-        data = json.loads(body, parse_constant=_refuse_constant)
-        if not isinstance(data, dict):
-            raise ValueError("reply is not a JSON object")
-        return data
-    # URLError, HTTPError and timeouts are OSErrors; RecursionError: absurdly nested JSON
-    except (OSError, ValueError, RecursionError) as e:
-        outcome = type(e).__name__
+        return outside.get(base, params)
+    except outside.OutsideError as e:
         raise WeatherError(UNREACHABLE) from e
-    finally:
-        # The host and timing only: the address itself holds the place
-        log.info("weather request: %s, %s in %d ms", host, outcome,
-                 (time.monotonic() - start) * 1000)
 
 
 # ---------- figures, worked out in code (the model never does arithmetic) ----------

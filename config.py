@@ -69,15 +69,45 @@ DEADLINE_WINDOW_DAYS = 14
 WEATHER_GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 WEATHER_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 WEATHER_AIR_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
-WEATHER_TIMEOUT_SECONDS = 5
-WEATHER_MAX_BYTES = 1_000_000      # a reply larger than this is refused
-WEATHER_CACHE_SECONDS = 600        # matches, forecasts and air quality are kept 10 minutes
+WEATHER_CACHE_SECONDS = 600       # matches, forecasts and air quality are kept 10 minutes
 WEATHER_CACHE_ENTRIES = 50
 WEATHER_MATCHES = 5                # places offered for one search
 WEATHER_QUERY_MAX = 80             # characters in a search
 WEATHER_NAME_MAX = 60              # characters kept of each outside name
 WEATHER_COORD_DECIMALS = 2         # about 1 km: the forecast is the same, a street is not named
 WEATHER_RAIN_CHANCE = 40           # percent; hours at or above this count as rain
+
+# Football, for the Sports space (docs/specs/2026-11-07-sports-space.md): football-data.org's
+# free plan. Every address JARVIS may ask is built here from these fixed codes, so the model can
+# never choose one (SECURITY.md section 5).
+FOOTBALL_API = "https://api.football-data.org/v4"
+FOOTBALL_LEAGUES = {
+    "premier-league": {"code": "PL", "name": "Premier League", "country": "England", "lat": 52.5, "lon": -1.5},
+    "serie-a": {"code": "SA", "name": "Serie A", "country": "Italy", "lat": 42.8, "lon": 12.5},
+    "la-liga": {"code": "PD", "name": "La Liga", "country": "Spain", "lat": 40.2, "lon": -3.7},
+    "bundesliga": {"code": "BL1", "name": "Bundesliga", "country": "Germany", "lat": 51.2, "lon": 10.4},
+    "ligue-1": {"code": "FL1", "name": "Ligue 1", "country": "France", "lat": 46.6, "lon": 2.4},
+}
+# The teams followed. Their ids are from memory of the API (its docs do not list them); stage 2
+# confirms them against a real reply before anything relies on them.
+FOOTBALL_TEAMS = {
+    "roma": {"id": 100, "name": "Roma", "league": "serie-a",
+             "cup_note": "The Coppa Italia isn't in the free data"},
+    "newcastle": {"id": 67, "name": "Newcastle", "league": "premier-league",
+                  "cup_note": "The FA Cup isn't in the free data"},
+}
+FOOTBALL_ADDRESSES = (
+    *(f"{FOOTBALL_API}/competitions/{code}/standings"
+      for code in (*(lg["code"] for lg in FOOTBALL_LEAGUES.values()), "CL")),
+    *(f"{FOOTBALL_API}/competitions/{lg['code']}/matches" for lg in FOOTBALL_LEAGUES.values()),
+    *(f"{FOOTBALL_API}/teams/{team['id']}/matches" for team in FOOTBALL_TEAMS.values()),
+)
+# The free plan allows 10 requests a minute; 9 keeps one spare for clock differences
+FOOTBALL_REQUESTS_PER_MINUTE = 9
+
+# The one door to the internet (outside.py), shared by Weather and Football
+OUTSIDE_TIMEOUT_SECONDS = 5
+OUTSIDE_MAX_BYTES = 1_000_000      # a reply larger than this is refused
 
 # Notes and memory (SECURITY.md section 5): trivial preferences, never secrets
 NOTE_MAX_CHARS = 300
