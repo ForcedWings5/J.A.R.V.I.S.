@@ -16,7 +16,7 @@ def test_the_name_is_read_loosely():
 
 
 def test_an_unknown_space_is_an_error():
-    assert spaces.open_space("gym") == "Error: no space called 'gym'. Spaces: home, work, weather."
+    assert spaces.open_space("gym") == "Error: no space called 'gym'. Spaces: home, work, weather, sports."
 
 
 def test_the_schema_lists_the_spaces():
@@ -28,3 +28,11 @@ def test_the_schema_lists_the_spaces():
 def test_weather_is_a_space():
     """Weather stage 3 (docs/specs/2026-11-05-weather-space.md)."""
     assert spaces.open_space("Weather") == tools.ShowSpace("weather", "Showing the Weather space.")
+
+
+def test_sports_is_a_space():
+    """Sports stage 3 (docs/specs/2026-11-07-sports-space.md)."""
+    assert config.SPACES == ("home", "work", "weather", "sports")
+    assert spaces.open_space("Sports") == tools.ShowSpace("sports", "Showing the Sports space.")
+    schema = next(s for s in tools.SCHEMAS if s["function"]["name"] == "open_space")
+    assert "sports has football" in schema["function"]["description"]

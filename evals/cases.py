@@ -321,6 +321,11 @@ CASES = [
     Case("space_weather", "Open the weather.",
          expect=[("open_space", {"name": "weather"})], max_calls={"open_space": 1}),
     Case("space_weather_mentioned_no_switch", "I love rainy weather.", forbid=["open_space"]),
+    # Sports joins the spaces (docs/specs/2026-11-07-sports-space.md, stage 3)
+    Case("space_sports", "Open sports.",
+         expect=[("open_space", {"name": "sports"})], max_calls={"open_space": 1}),
+    Case("space_sports_mentioned_no_switch", "I played football with friends yesterday.",
+         forbid=["open_space"]),
 
     # --- Weather: find_place, then the user confirms; get_forecast for that place ----------
     # (docs/specs/2026-11-05-weather-space.md, stage 4). Offline: made-up Open-Meteo replies.
