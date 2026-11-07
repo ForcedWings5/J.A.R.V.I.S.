@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/static/css/motion.css">
 <link rel="stylesheet" href="/static/css/space-work.css">
 <link rel="stylesheet" href="/static/css/space-weather.css">
+<link rel="stylesheet" href="/static/css/space-sports.css">
 </head>
 <body data-state="idle" data-space="home">
 <!-- Shown once per browser session, never with Reduce motion (app.js) -->
@@ -111,6 +112,45 @@
     <div class="wx-credit muted"><a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Weather data by Open-Meteo.com</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · rounded and converted by JARVIS</div>
   </div>
 </section>
+<!-- Sports (static/js/space-sports.js, sports-football.js): a hub of sports, Football's league
+     picker on the globe, then a league's page. data-level says which: hub, football or league -->
+<section class="space" id="space-sports" data-space="sports" data-level="hub" aria-label="Sports" hidden>
+  <nav class="sp-trail" aria-label="Where you are">
+    <div id="sp-trail"></div>
+    <button id="sp-back" class="btn ghost">BACK</button>
+  </nav>
+  <div id="sp-hub" class="sp-hub">
+    <button class="sp-object" data-sport="football" aria-label="Football">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><circle class="sp-white" cx="32" cy="32" r="26"/><path class="sp-ink" d="M32 21l10 7-4 12H26l-4-12z"/><path class="sp-seam" d="M32 21V8M42 28l12-4M38 40l7 10M26 40l-7 10M22 28l-12-4"/></svg>
+      <span class="sp-name">Football</span>
+    </button>
+    <button class="sp-object" data-sport="basketball" aria-label="NBA, coming soon">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><circle class="sp-orange" cx="32" cy="32" r="26"/><path class="sp-seam-dark" d="M6 32h52M32 6v52M14 14c9 9 9 27 0 36M50 14c-9 9-9 27 0 36"/></svg>
+      <span class="sp-name">NBA</span>
+    </button>
+    <button class="sp-object" data-sport="american-football" aria-label="NFL, coming soon">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><ellipse class="sp-brown" cx="32" cy="32" rx="28" ry="17" transform="rotate(-30 32 32)"/><path class="sp-lace" d="M24 37l16-10M27 37l-3-4M31 34l-3-4M35 32l-3-4M39 29l-3-4"/></svg>
+      <span class="sp-name">NFL</span>
+    </button>
+    <button class="sp-object" data-sport="baseball" aria-label="MLB, coming soon">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><circle class="sp-white" cx="32" cy="32" r="24"/><path class="sp-stitch" d="M20 12c8 12 8 28 0 40M44 12c-8 12-8 28 0 40"/></svg>
+      <span class="sp-name">MLB</span>
+    </button>
+    <button class="sp-object" data-sport="f1" aria-label="F1, coming soon">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><circle class="sp-tyre" cx="32" cy="32" r="27"/><circle class="sp-band" cx="32" cy="32" r="19"/><circle class="sp-rim" cx="32" cy="32" r="10"/></svg>
+      <span class="sp-name">F1</span>
+    </button>
+  </div>
+  <div id="sp-note" class="sp-note muted" aria-live="polite"></div>
+  <div id="sp-picker" class="sp-picker">
+    <div class="sp-globe-wrap">
+      <canvas id="sp-globe" aria-label="A globe of Europe"></canvas>
+      <div id="sp-pins" class="sp-pins"></div>
+    </div>
+    <div class="panel sp-leagues"><div class="h"><span class="l">PICK A LEAGUE</span></div><div id="sp-league-list"></div></div>
+  </div>
+  <div id="sp-league" class="sp-league"></div>
+</section>
 
 <script src="/static/js/orb.js"></script>
 <script src="/static/js/chat.js"></script>
@@ -123,6 +163,8 @@
 <script src="/static/js/space-work.js"></script>
 <script src="/static/js/globe.js"></script>
 <script src="/static/js/space-weather.js"></script>
+<script src="/static/js/space-sports.js"></script>
+<script src="/static/js/sports-football.js"></script>
 <script src="/static/js/motion.js"></script>
 </body>
 </html>

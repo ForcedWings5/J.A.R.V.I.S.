@@ -7,6 +7,7 @@ import logging
 import os
 import re
 from datetime import datetime
+from pathlib import Path
 import sys
 import types
 import typing
@@ -27,6 +28,8 @@ import urllib.error
 import weather
 import weather_data as data
 from fakes import FakeModel, call, say, use
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture
@@ -693,3 +696,37 @@ def test_the_league_endpoint_refuses_other_websites_and_plain_text(client):
     assert r.status_code == 403
     r = client.post("/sports/league", content='{"league": "serie-a"}', headers={"Content-Type": "text/plain"})
     assert r.status_code == 422
+
+
+# ---------- the Sports page (docs/specs/2026-11-07-sports-space.md, stage 3) ----------
+
+SPORTS_JS = ["static/js/space-sports.js", "static/js/sports-football.js"]
+
+
+def test_the_sports_section_and_its_files_are_on_the_page(client):
+    page = client.get("/").text
+    assert 'id="space-sports"' in page and 'data-level="hub"' in page
+    assert "/static/css/space-sports.css" in page
+    order = [page.index(f"/static/js/{name}.js") for name in
+             ("globe", "space-weather", "space-sports", "sports-football", "motion")]
+    assert order == sorted(order)
+
+
+def test_every_element_the_sports_scripts_look_up_exists():
+    page = (ROOT / "static" / "index.html").read_text()
+    for path in SPORTS_JS:
+        for element_id in re.findall(r"getElementById\('([^']+)'\)", (ROOT / path).read_text()):
+            assert f'id="{element_id}"' in page, (path, element_id)
+
+
+def test_the_hub_has_the_five_sports():
+    page = (ROOT / "static" / "index.html").read_text()
+    assert re.findall(r'data-sport="([^"]+)"', page) == [
+        "football", "basketball", "american-football", "baseball", "f1"]
+
+
+def test_the_page_knows_the_same_leagues_as_the_server():
+    source = (ROOT / "static" / "js" / "sports-football.js").read_text()
+    found = re.findall(r"slug: '([^']+)', name: '([^']+)', country: '([^']+)', lat: ([-\d.]+), lon: ([-\d.]+)", source)
+    assert found == [(slug, lg["name"], lg["country"], str(lg["lat"]), str(lg["lon"]))
+                     for slug, lg in config.FOOTBALL_LEAGUES.items()]

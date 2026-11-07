@@ -1,0 +1,71 @@
+/* The Sports space (static/js/space-sports.js, sports-football.js): the hub of sports, Football's
+   league picker on the globe, and a league's page. data-level on the section says which is
+   shown; each fades in (stage 4 adds the motion). JARVIS's dock is beside it (jarvis.css). */
+#space-sports { position:relative; }
+#space-sports .panel { cursor:default; }
+
+/* Only the current level shows; it fades in, except with Reduce motion */
+#space-sports:not([data-level="hub"]) .sp-hub,
+#space-sports:not([data-level="hub"]) .sp-note,
+#space-sports:not([data-level="football"]) .sp-picker,
+#space-sports:not([data-level="league"]) .sp-league { display:none; }
+.sp-hub, .sp-picker, .sp-league { animation:sp-in .35s ease; }
+@keyframes sp-in { from { opacity:0; } to { opacity:1; } }
+body.reduce .sp-hub, body.reduce .sp-picker, body.reduce .sp-league { animation:none; }
+@media (prefers-reduced-motion: reduce) { .sp-hub, .sp-picker, .sp-league { animation:none; } }
+
+/* The trail: "Sports / Football / Serie A", and Back */
+.sp-trail { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:38px;
+  font-size:14px; color:var(--muted); letter-spacing:.3px; }
+.sp-crumb { background:none; border:none; padding:0; font:inherit; color:var(--muted); cursor:pointer; }
+.sp-crumb:hover { color:var(--accent); }
+.sp-here { color:var(--text); font-weight:600; }
+#sp-back { padding:7px 14px; font-size:12px; }
+#sp-back[hidden] { display:none; }
+
+/* The hub: one glass circle per sport */
+.sp-hub { flex:1; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:28px;
+  align-content:center; }
+.sp-object { width:150px; height:150px; border-radius:50%; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:8px; cursor:pointer; color:var(--text);
+  border:1px solid var(--line); background-color:var(--glass); -webkit-backdrop-filter:var(--blur);
+  backdrop-filter:var(--blur); box-shadow:var(--rim); font:inherit; }
+.sp-object:hover, .sp-object:focus-visible { border-color:var(--accent); box-shadow:var(--rim), 0 0 18px var(--glow); }
+.sp-object svg { width:78px; height:78px; }
+.sp-object:not([data-sport="football"]) svg { opacity:.7; }
+.sp-name { font-size:13px; letter-spacing:.5px; }
+.sp-note { text-align:center; min-height:20px; }
+
+/* The objects' colours: drawn with classes, never inline styles (the security policy) */
+.sp-white { fill:#f2f6f8; }
+.sp-ink { fill:#10181d; }
+.sp-seam { fill:none; stroke:#10181d; stroke-width:2; }
+.sp-orange { fill:#e07a1f; }
+.sp-seam-dark { fill:none; stroke:#3a1a05; stroke-width:2; }
+.sp-brown { fill:#7a3e1d; }
+.sp-lace { fill:none; stroke:#fff; stroke-width:2.5; stroke-linecap:round; }
+.sp-stitch { fill:none; stroke:#c0392b; stroke-width:2.5; stroke-dasharray:3 3; }
+.sp-tyre { fill:#141414; }
+.sp-band { fill:none; stroke:#e10600; stroke-width:3; }
+.sp-rim { fill:#6d7378; }
+
+/* The league picker: the globe framed on Europe, a pin per country, and a list beside it */
+.sp-picker { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0, 1fr) 240px; gap:16px; }
+.sp-globe-wrap { position:relative; min-height:420px; }
+#sp-globe { position:absolute; inset:0; width:100%; height:100%; display:block; }
+.sp-pins { position:absolute; inset:0; pointer-events:none; }
+.sp-pin { position:absolute; transform:translate(-8px, -50%); pointer-events:auto; cursor:pointer;
+  display:flex; align-items:center; gap:8px; padding:5px 10px 5px 6px; border-radius:999px;
+  font:inherit; font-size:12px; color:var(--text); white-space:nowrap;
+  border:1px solid var(--line); background-color:var(--glass); -webkit-backdrop-filter:var(--blur);
+  backdrop-filter:var(--blur); box-shadow:var(--rim); }
+.sp-pin::before { content:""; width:10px; height:10px; border-radius:50%; background:var(--accent);
+  box-shadow:0 0 10px var(--glow); }
+.sp-pin:hover, .sp-pin:focus-visible { border-color:var(--accent); }
+.sp-pin[hidden] { display:none; }
+.sp-leagues { align-self:start; }
+#sp-league-list { display:flex; flex-direction:column; gap:6px; }
+.sp-league-item { display:flex; justify-content:space-between; align-items:baseline; gap:8px;
+  padding:10px 12px; border-radius:12px; cursor:pointer; font:inherit; font-size:14px;
+  color:var(--text); background:rgba(76,201,240,.06); border:1px solid transparent; text-align:left; }
+.sp-league-item:hover, .sp-league-item:focus-visible { border-color:var(--line-strong); }

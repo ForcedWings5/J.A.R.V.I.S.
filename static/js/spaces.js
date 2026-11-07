@@ -58,9 +58,10 @@ function switchSpaceWhenFree(name) {
   switchSpace(name);
 }
 
-// '#work' -> 'work'; nothing, or a name that is not a space, means Home
+// '#work' -> 'work'; nothing, or a name that is not a space, means Home. A space may keep
+// its own levels after a slash ('#sports/serie-a'); the space reads those itself
 function spaceFromAddress() {
-  const name = location.hash.slice(1).toLowerCase();
+  const name = location.hash.slice(1).toLowerCase().split('/')[0];   // '#sports/serie-a' -> 'sports'
   return spaces.some(s => s.name === name) ? name : 'home';
 }
 
