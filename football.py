@@ -185,3 +185,76 @@ def ordinal(n: int) -> str:
     if 10 <= n % 100 <= 20:
         return f"{n}th"
     return f"{n}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th') }"
+
+
+# ---------- the summaries, worked out in code (pure: they only read what they are given) ----------
+
+_PENDING = ("upcoming", "live", "postponed", "suspended")
+
+
+def _when(m: dict) -> tuple[str, str]:
+    return m["date"], m["time"]
+
+
+def latest_round(matches: list[dict]) -> dict:
+    """The finished matches of the highest matchday that has any, in kick-off order."""
+    done = [m for m in matches if m and m["status"] == "finished" and m["matchday"] is not None]
+    if not done:
+        return {"matchday": None, "matches": []}
+    day = max(m["matchday"] for m in done)
+    return {"matchday": day, "matches": sorted((m for m in done if m["matchday"] == day), key=_when)}
+
+
+def next_round(matches: list[dict]) -> dict:
+    """The matches still to play of the lowest matchday that has any, in kick-off order."""
+    pending = [m for m in matches if m and m["status"] in _PENDING and m["matchday"] is not None]
+    if not pending:
+        return {"matchday": None, "matches": []}
+    day = min(m["matchday"] for m in pending)
+    return {"matchday": day, "matches": sorted((m for m in pending if m["matchday"] == day), key=_when)}
+
+
+def result_for(match: dict, team_id: int) -> str | None:
+    """W, D or L from the team's side, for a finished match with a score; otherwise None."""
+    score = match.get("score")
+    if match.get("status") != "finished" or not score:
+        return None
+    if match["home"]["id"] == team_id:
+        ours, theirs = score["home"], score["away"]
+    elif match["away"]["id"] == team_id:
+        ours, theirs = score["away"], score["home"]
+    else:
+        return None
+    return "W" if ours > theirs else "D" if ours == theirs else "L"
+
+
+def team_block(slug: str, table: list[dict], team_matches: list[dict],
+               cl_table: list[dict] | None) -> dict:
+    """What a themed page shows for the followed team. Missing data gives None or empty
+    lists, never a guess: a team not in the table has no position."""
+    team = config.FOOTBALL_TEAMS[slug]
+    ms = sorted((m for m in team_matches if m), key=_when)
+    row = next((r for r in table if r["team"]["id"] == team["id"]), None)
+    results = [{"result": result_for(m, team["id"]), "match": m} for m in ms]
+    form = [r for r in results if r["result"]][-5:]
+    live = [m for m in ms if m["status"] == "live"]
+    coming = [m for m in ms if m["status"] in ("live", "upcoming")][:5]
+    upcoming = [m for m in ms if m["status"] == "upcoming"]
+    return {
+        "slug": slug,
+        "name": team["name"],
+        "id": team["id"],
+        "position": row["position"] if row else None,
+        "position_words": ordinal(row["position"]) if row else None,
+        "points": row["points"] if row else None,
+        "next": live[0] if live else upcoming[0] if upcoming else None,
+        "form": form,
+        "recent": list(reversed(form)),
+        "coming": coming,
+        "champions_league": cl_table,
+        "cup_note": team["cup_note"],
+    }
+
+
+def season_started(table: list[dict]) -> bool:
+    return any((r["played"] or 0) > 0 for r in table)

@@ -165,3 +165,64 @@ def test_odd_table_rows_never_crash():
     (12, "12th"), (13, "13th"), (21, "21st"), (22, "22nd"), (23, "23rd"), (101, "101st"), (111, "111th")])
 def test_positions_in_words(n, word):
     assert football.ordinal(n) == word
+
+
+# ---------- the summaries, worked out in code ----------
+
+def read(*ms):
+    return [football._match(m) for m in ms]
+
+
+def test_the_latest_round_is_the_highest_finished_matchday(frozen):
+    ms = read(data.match(1, "2029-12-30T14:00:00Z", "FINISHED", data.ROMA, data.LAZIO, (2, 1), 18),
+              data.match(2, "2030-01-05T17:00:00Z", "FINISHED", data.INTER, data.ROMA, (1, 1), 19),
+              data.match(3, "2030-01-04T19:45:00Z", "FINISHED", data.MILAN, data.NAPOLI, (0, 2), 19),
+              data.match(4, "2030-01-12T19:45:00Z", "TIMED", data.ROMA, data.MILAN, None, 20))
+    latest = football.latest_round(ms)
+    assert latest["matchday"] == 19 and [m["id"] for m in latest["matches"]] == [3, 2]
+    upcoming = football.next_round(ms)
+    assert upcoming["matchday"] == 20 and [m["id"] for m in upcoming["matches"]] == [4]
+
+
+def test_no_matches_means_empty_rounds():
+    assert football.latest_round([]) == {"matchday": None, "matches": []}
+    assert football.next_round([]) == {"matchday": None, "matches": []}
+
+
+def test_results_from_the_teams_side(frozen):
+    win, draw = read(data.match(1, "2030-01-05T17:00:00Z", "FINISHED", data.LAZIO, data.ROMA, (0, 2), 19),
+                     data.match(2, "2030-01-06T17:00:00Z", "FINISHED", data.ROMA, data.INTER, (1, 1), 19))
+    assert (football.result_for(win, 100), football.result_for(win, 110)) == ("W", "L")
+    assert football.result_for(draw, 100) == "D"
+
+
+def test_the_team_block(frozen):
+    table = football._table(data.standings(data.row(1, data.INTER, 19, 14, 3, 2, 25, 45),
+                                           data.row(2, data.NAPOLI, 19, 13, 3, 3, 18, 42),
+                                           data.row(3, data.ROMA, 19, 12, 4, 3, 20, 40)))
+    block = football.team_block("roma", table, read(*data.ROMA_SEASON), None)
+    assert (block["position"], block["position_words"], block["points"]) == (3, "3rd", 40)
+    assert [f["result"] for f in block["form"]] == ["D", "L", "W", "W", "L"]
+    assert [r["result"] for r in block["recent"]] == ["L", "W", "W", "L", "D"]
+    assert len(block["coming"]) == 5 and block["next"] == block["coming"][0]
+    assert block["next"]["status"] == "upcoming" and block["champions_league"] is None
+    assert block["cup_note"] == "The Coppa Italia isn't in the free data"
+    assert (block["slug"], block["name"], block["id"]) == ("roma", "Roma", 100)
+
+
+def test_a_live_match_is_next(frozen):
+    live = data.match(9, "2030-01-07T07:00:00Z", "IN_PLAY", data.ROMA, data.LAZIO, (1, 0), 20)
+    block = football.team_block("roma", [], read(live, *data.ROMA_SEASON), None)
+    assert block["next"]["id"] == 9 and block["next"]["score"] == {"home": 1, "away": 0}
+
+
+def test_a_team_missing_from_the_table_has_no_position():
+    block = football.team_block("newcastle", [], [], None)
+    assert (block["position"], block["position_words"], block["points"], block["next"]) == (None, None, None, None)
+    assert block["form"] == [] and block["coming"] == []
+
+
+def test_the_season_has_started_once_a_game_is_played():
+    assert not football.season_started(football._table(data.standings(data.row(1, data.ROMA, 0, 0, 0, 0, 0, 0))))
+    assert football.season_started(football._table(data.standings(data.row(1, data.ROMA, 1, 1, 0, 0, 2, 3))))
+    assert not football.season_started([])
