@@ -1,7 +1,8 @@
-// ---------- The Weather globe (docs/specs/2026-11-05-weather-space.md, "The page") ----------
+// ---------- The globe (docs/specs/2026-11-05-weather-space.md, "The page") ----------
 // Drawing only: a wireframe Earth on a canvas, seen from far away (an orthographic
-// projection), that turns, spins to a place, pings it and zooms in. It never fetches;
-// space-weather.js gives it the coastlines and tells it what to do.
+// projection), that turns, spins to a place, pings it and zooms in. Weather and Sports each
+// make one (makeGlobe) and tell it what to do. The only thing fetched here is the coastlines,
+// once, for both (loadCoastlines).
 
 // The maths, kept apart so it can be checked on its own (and tested, if a JS test runner
 // is ever added). Angles in degrees; a unit sphere, x to the right, y up.
@@ -29,6 +30,19 @@ const globeMath = {
 function globeCalm() {
   return document.body.classList.contains('reduce') ||
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+// The coastlines (static/data/coastlines.json), fetched once and shared by every globe. If
+// they cannot be read, the globes draw only their grid and rim.
+let globeLines = null;
+function loadCoastlines() {
+  if (!globeLines) {
+    globeLines = fetch('/static/data/coastlines.json')
+      .then(res => { if (!res.ok) throw new Error('coastlines ' + res.status); return res.json(); })
+      .then(data => (Array.isArray(data.lines) ? data.lines : []))
+      .catch(e => { console.warn('coastlines unavailable; drawing the grid only', e); return []; });
+  }
+  return globeLines;
 }
 
 const GLOBE_TURN_DEG_PER_S = 6;     // one turn a minute at rest
@@ -213,10 +227,12 @@ function makeGlobe(canvas) {
         return ok;
       });
     },
-    jumpTo(lat, lon) {
+    // At once, no animation; zoom too when given (Sports frames Europe this way)
+    jumpTo(lat, lon, zoom) {
       state.turning = false;
       state.lat = lat;
       state.lon = lon;
+      if (zoom !== undefined) state.zoom = zoom;
       dirty = true;
     },
     zoomTo(lat, lon) {

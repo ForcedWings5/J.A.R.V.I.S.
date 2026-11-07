@@ -6,20 +6,6 @@
 const wxSection = document.getElementById('space-weather');
 const wxCanvas = document.getElementById('wx-globe');
 const globe = makeGlobe(wxCanvas);
-let wxLinesLoaded = false;
-
-// The coastlines, once; if they fail, the globe still draws its grid and rim
-async function wxLoadLines() {
-  if (wxLinesLoaded) return;
-  wxLinesLoaded = true;
-  try {
-    const res = await fetch('/static/data/coastlines.json');
-    if (!res.ok) throw new Error('coastlines ' + res.status);
-    globe.setLines((await res.json()).lines);
-  } catch (e) {
-    console.warn('coastlines unavailable; drawing the grid only', e);
-  }
-}
 
 function wxView() { return wxSection.dataset.view; }
 function wxSetView(view) { wxSection.dataset.view = view; }
@@ -27,7 +13,7 @@ function wxSetView(view) { wxSection.dataset.view = view; }
 registerSpace({
   name: 'weather', title: 'WEATHER', key: '3', section: wxSection,
   enter() {
-    wxLoadLines();
+    loadCoastlines().then(lines => globe.setLines(lines));   // fetched once, shared (globe.js)
     globe.start();
     if (wxPending) { const m = wxPending; wxPending = null; wxShowMatchesNow(m); }
     else if (wxView() === 'page' && wxPayload) globe.zoomTo(wxPayload.place.lat, wxPayload.place.lon);
