@@ -12,7 +12,7 @@ nothing measured the model, `brain.py` could not be tested, the conversation gre
 tool schemas and functions lived in two places, and the server only worked from its own
 folder. Phases 2 to 4 fixed all five (CHANGELOG sections 21 to 27). Today:
 
-- **The code around the model is well tested**: 728 tests, under a second, run by CI on
+- **The code around the model is well tested**: 799 tests, under a second, run by CI on
   every push. The evals measure the model: 78 cases, run before and after every prompt change.
 - **The model is still the least reliable part**, but its habits are now measured: it
   sometimes mentions a card that was never shown (about 1 run in 3 for a repeating event
@@ -138,7 +138,8 @@ Sports, JARVIS in every one), so the dashboard does not get cluttered. Design:
    result, so a slow API never blocks a reply. *Weather done, as its own space with a globe
    (spec `docs/specs/2026-11-05-weather-space.md`, CHANGELOG sections 55 to 58). Sports is
    being built in five stages (spec `docs/specs/2026-11-07-sports-space.md`): a hub of sports,
-   Football first. Stage 1, one shared door to the internet, is done (CHANGELOG section 59).
+   Football first. Stage 1, one shared door to the internet, and stage 2, the football server,
+   are done (CHANGELOG sections 59 and 60).
    News needs a prompt-injection design first.*
 7. **Sound effects for the dashboard.** The animations are done (CHANGELOG section 42);
    the owner chose to leave sound for later. Quiet, short, and off with voice mode off.

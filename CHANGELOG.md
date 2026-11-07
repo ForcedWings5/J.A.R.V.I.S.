@@ -1259,6 +1259,44 @@ The Sports space was designed on 2026-11-07 (spec `docs/specs/2026-11-07-sports-
     - SECURITY.md and CLAUDE.md should mention that the `FOOTBALL_DATA_KEY` environment variable also works;
     - the guard's exact 60-second edge is right but not pinned by a test.
 
+## 60. Sports, stage 2: the football server
+
+JARVIS can now fetch football from football-data.org. `POST /sports/league` returns a finished league page, built in code. There is no page to show it yet (stage 3) and no JARVIS tools (stage 5).
+
+- **The five follow-ups from the stage 1 review are closed:**
+  - `outside.get` refuses a header on any address that is not football-data.org, so the key can only ever go there.
+  - The eval runner now points `JARVIS_ENV` at an empty file and drops a shell key, as the tests do.
+  - A `.env` saved with a byte-order mark (some editors add one) now works, and so does a tab after `export`.
+  - The guard's minute ends exactly at 60 seconds, pinned by a test. Changing `<=` to `<` makes that test fail, which was checked.
+  - SECURITY.md, CLAUDE.md and the README now say the key can also come from the `FOOTBALL_DATA_KEY` environment variable.
+- **Safe reading is shared.** Weather's readers (`num`, `text`, `obj`, `clean`) moved into `outside.py`, which owns everything from the internet, so Football uses the same ones. Weather keeps its names for them and is unchanged.
+- **Asking** (`football._get`): the key goes in the `X-Auth-Token` header through the shared door. With no key, nothing is sent. Each failure has one of the spec's messages: no key, key refused, too many requests, couldn't reach.
+- **Reading replies:**
+  - Every number is checked, names are cleaned and cut to 40 characters, and a match with a missing or unknown part is left out.
+  - Kick-offs are converted from UTC to the Mac's time, correctly across the clock change.
+  - Weekday and month names are in English whatever the Mac's language.
+- **Worked out in code:**
+  - the latest round (the highest matchday with finished games);
+  - the next round;
+  - W, D or L from a team's side;
+  - for Roma and Newcastle: position in words ("3rd"), points, the next match (a live one counts first), the last 5 results, the next 5 games, the Champions League table when the team is in it, and the cup note.
+- **Kept in memory only:**
+  - each reply for 10 minutes, or 2 while a match is live;
+  - an earlier copy for 6 hours. It stands in, with its time, when the service is busy or down, but never when the key is missing or refused, because then you need to see that.
+- **Requests per page:** 2 for a general league, 3 for a themed one, and 4 when the team has Champions League games.
+- **`POST /sports/league`:**
+  - It takes one of the five league names; anything else gets 422.
+  - Failures: no key 503, refused 502, busy 429, unreachable 502.
+  - It has the same `Origin` and `text/plain` locks as Weather's endpoints.
+  - A test checks that the key appears only in the request header, never in the page data, an error or the log, including when it is refused.
+- **Checked live with the owner's key:**
+  - **The team ids are right:** Roma is 100 and Newcastle is 67.
+  - **The real replies have the same shape as the made-up ones,** and every real match was read (Serie A 27 of 27, Roma 21 of 21, Premier League 20 of 20, Newcastle 16 of 16).
+  - **Serie A, 4 requests:** Roma 2nd on 27 points, next match Saturday 21 November, a 36-row Champions League table. The current round was half played, so the latest and next round were both matchday 11, which is correct.
+  - **Premier League, 3 requests:** Newcastle 11th on 12 points, and no Champions League games, so that table was rightly not asked for.
+- **Tests:** 799, up from 728.
+- **Not checked:** the page (stage 3), JARVIS's tools (stage 5), and a live match during play.
+
 ---
 
 ## Status
@@ -1289,6 +1327,7 @@ The Sports space was designed on 2026-11-07 (spec `docs/specs/2026-11-07-sports-
 | Weather, stage 3: the page (section 57) | Done: evals 207/210 (prompt `7e42e25bef37`); checked in a demo and live; not yet in Safari or seen in motion; no tools yet |
 | Weather, stage 4: asking JARVIS (section 58) | Done: evals 228/231 (prompt `0a1a37f7968e`), plus a later-in-the-day case 3/3; checked in a demo and live; not yet in Safari or by voice |
 | Sports, stage 1: one shared door (section 59) | Done: 728 tests; Weather checked live through the new door; nothing fetched from football-data.org yet |
+| Sports, stage 2: the football server (section 60) | Done: 799 tests; checked live with the owner's key (team ids, reply shapes, Serie A and Premier League pages); no page or tools yet |
 | Other websites (Origin check) | Done: attack shown and then blocked in the real browser, dashboard unaffected, 406 tests (section 36) |
 | Voice input, voice output, voice mode switch | Tested and working |
 | Calendar views (compact agenda, year/month/week/day) | Layout confirmed good; all four views checked in a demo, on Home and in Work (section 51) |

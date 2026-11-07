@@ -99,6 +99,24 @@ header turns every animation off.
   explanation afterwards is a guess, not a record.
 - The note tools are logged as lengths only, never their words (see Notes below).
 
+## The football key (Sports)
+
+The Sports space reads football from football-data.org's free plan, which needs a free key.
+Without one, the football pages say so and nothing is sent.
+
+1. Sign up at football-data.org (the free plan). They email you the key.
+2. In the project folder, make a file called `.env` (git ignores it) with one line:
+   `FOOTBALL_DATA_KEY=yourkey`. Type it in an editor (VS Code, or `nano .env`), not with
+   `echo` in the terminal, which would keep the key in the shell's history. Then
+   `chmod 600 .env`, so only you can read it.
+3. Check JARVIS can read it, without printing it:
+   `JARVIS_DB=:memory: python -c "import football; print(football._key() is not None)"`
+   should print `True`.
+
+The key can also come from a `FOOTBALL_DATA_KEY` environment variable, which wins over `.env`.
+Never put it in code, a commit, or a chat. VS Code may offer to load `.env` into its terminals
+(`python.terminal.useEnvFile`): leave that off, since JARVIS reads the file itself.
+
 ## Notes
 
 Tell JARVIS small facts and preferences to keep: "remember that my favourite food is
