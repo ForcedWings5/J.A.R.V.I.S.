@@ -3,10 +3,12 @@
 Nothing here goes online: conftest.py makes outside._fetch fail loudly, and each test that
 needs a reply puts a made-up one in its place (spec: docs/specs/2026-11-07-sports-space.md).
 """
+import collections
 import http.server
 import logging
 import ssl
 import threading
+import time
 import types
 import urllib.error
 import urllib.request
@@ -143,11 +145,25 @@ def test_open_meteo_has_no_guard(monkeypatch, minute):
     assert len(seen) == 20
 
 
+class _SlowCount(collections.deque):
+    """The count is taken, then a moment passes before the guard can record the request, so
+    other threads run in between with the same count. Without the lock, more than 9 requests
+    then get through (checked: 20 of 20)."""
+
+    def __len__(self):
+        count = super().__len__()
+        time.sleep(0.001)
+        return count
+
+
 def test_the_guard_holds_with_requests_at_the_same_time(monkeypatch, minute):
     seen = fake_fetch(monkeypatch, b"{}")
+    monkeypatch.setitem(outside._sent, "api.football-data.org", _SlowCount())
     results = []
+    start = threading.Barrier(20)               # all 20 ask at the same moment
 
     def ask():
+        start.wait()
         try:
             outside.get(FOOT, {})
             results.append("ok")

@@ -1237,7 +1237,7 @@ The Sports space was designed on 2026-11-07 (spec `docs/specs/2026-11-07-sports-
 - **A rate guard.** The free plan allows 10 requests a minute, and going over can get a key blocked.
   - JARVIS allows itself 9 a minute to football-data.org and refuses the next before it is sent.
   - A request that was sent and failed still counts.
-  - **Tested:** 20 requests at the same moment let exactly 9 through.
+  - **Tested:** 20 requests at the same moment let exactly 9 through. The test was checked by removing the lock: it then fails, with 20 let through.
   - Open-Meteo has no guard.
 - **The football key** (`football._key()`, the only thing in `football.py` so far):
   - It is read from the `FOOTBALL_DATA_KEY` environment variable, else from `.env`, which git ignores.
@@ -1250,6 +1250,14 @@ The Sports space was designed on 2026-11-07 (spec `docs/specs/2026-11-07-sports-
 - **Checked with the real model:** the eval runner's new hook works. `python -m evals --runs 1 -k weather_find_paris` passed 2 of 2 (the filter matches two cases).
 - **No prompt change**, so no full eval.
 - **Not checked:** football-data.org itself (nothing is fetched until stage 2), the team ids, and the key with a real account.
+- **Final review** (a fresh reviewer of the whole branch, offline). It found the move faithful, line by line, and the guard, the key handling and the test isolation correct. One important finding, fixed:
+  - **The test for requests at the same moment could not fail.** With the lock removed it still passed, because Python never switched threads at the risky moment. The test now holds every thread at a barrier and pauses between the guard's count and its record, so without the lock 20 get through and the test fails.
+  - **Left for stage 2**, where the key is first used:
+    - `outside.get` should refuse a header on a non-football address, so the key can only ever go to football-data.org;
+    - the eval runner should set `JARVIS_ENV` and drop a shell key, as the tests do;
+    - a `.env` saved with a byte-order mark (some editors add one) reads as no key;
+    - SECURITY.md and CLAUDE.md should mention that the `FOOTBALL_DATA_KEY` environment variable also works;
+    - the guard's exact 60-second edge is right but not pinned by a test.
 
 ---
 
