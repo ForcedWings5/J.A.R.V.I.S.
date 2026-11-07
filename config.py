@@ -107,6 +107,13 @@ FOOTBALL_ADDRESSES = (
 )
 # The free plan allows 10 requests a minute; 9 keeps one spare for clock differences
 FOOTBALL_REQUESTS_PER_MINUTE = 9
+FOOTBALL_CACHE_SECONDS = 600              # a reply is kept 10 minutes...
+FOOTBALL_LIVE_CACHE_SECONDS = 120         # ...or 2 while a match in it is being played
+FOOTBALL_EARLIER_COPY_SECONDS = 21_600    # an earlier copy, shown for 6 hours if the service fails
+FOOTBALL_CACHE_ENTRIES = 30
+FOOTBALL_NAME_MAX = 40                    # characters kept of each team or competition name
+FOOTBALL_WINDOW_DAYS = 10                 # a league's matches: today, give or take 10 days
+FOOTBALL_TEAM_WINDOW_DAYS = 60            # a followed team's: today, give or take 60 days
 
 # The one door to the internet (outside.py), shared by Weather and Football
 OUTSIDE_TIMEOUT_SECONDS = 5

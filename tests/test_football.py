@@ -3,11 +3,15 @@ never from the real .env in a test (conftest.py points JARVIS_ENV at an empty fi
 Spec: docs/specs/2026-11-07-sports-space.md.
 """
 import os
+import urllib.error
+from datetime import datetime  # noqa: F401  (used by later tests)
+from zoneinfo import ZoneInfo
 
 import pytest
 
 import config
 import football
+import football_data as data
 
 KEY = "abcdef0123456789"
 
@@ -68,3 +72,96 @@ def test_a_byte_order_mark_and_a_tab_after_export_work(tmp_path, monkeypatch, ra
     path.write_bytes(raw)
     monkeypatch.setattr(config, "ENV_FILE", path)
     assert football._key() == KEY
+
+
+# ---------- asking football-data.org, and reading its replies ----------
+
+STANDINGS = config.FOOTBALL_API + "/competitions/SA/standings"
+
+
+@pytest.fixture
+def frozen(monkeypatch):
+    data.freeze(monkeypatch)
+
+
+def test_no_key_means_no_request(monkeypatch, frozen):
+    monkeypatch.delenv("FOOTBALL_DATA_KEY")
+    served = data.serve(monkeypatch, {})
+    with pytest.raises(football.FootballError) as caught:
+        football._get(STANDINGS, {})
+    assert caught.value.kind == "no_key" and served.calls == []
+    assert str(caught.value) == "Football needs a free key from football-data.org: see README"
+
+
+def test_the_key_goes_in_the_header(monkeypatch, frozen):
+    served = data.serve(monkeypatch, {"/competitions/SA/standings": data.standings()})
+    football._get(STANDINGS, {})
+    assert served.calls == [(STANDINGS, {"X-Auth-Token": data.KEY})]
+
+
+@pytest.mark.parametrize("code, kind, message", [
+    (403, "refused", "The football data key was refused. Check it in .env."),
+    (429, "busy", "Too many requests just now. Try again in a minute."),
+    (500, "unreachable", "Couldn't reach the football data.")])
+def test_failures_keep_their_kind(monkeypatch, frozen, code, kind, message):
+    data.serve(monkeypatch, {"/competitions/SA/standings":
+                             urllib.error.HTTPError(STANDINGS, code, "x", {}, None)})
+    with pytest.raises(football.FootballError) as caught:
+        football._get(STANDINGS, {})
+    assert caught.value.kind == kind and str(caught.value) == message
+
+
+def test_a_match_is_read_into_plain_values(frozen):
+    m = football._match(data.match(1, "2030-01-12T19:45:00Z", "TIMED", data.ROMA,
+                                   data.LAZIO, matchday=20))
+    assert m == {"id": 1, "date": "2030-01-12", "time": "19:45", "day": "Saturday 12 January",
+                 "competition": "Serie A", "code": "SA", "matchday": 20, "status": "upcoming",
+                 "home": {"id": 100, "name": "Roma"}, "away": {"id": 110, "name": "Lazio"},
+                 "score": None}
+
+
+@pytest.mark.parametrize("status, word", [
+    ("IN_PLAY", "live"), ("PAUSED", "live"), ("EXTRA_TIME", "live"),
+    ("PENALTY_SHOOTOUT", "live"), ("SCHEDULED", "upcoming"), ("FINISHED", "finished"),
+    ("AWARDED", "finished"), ("POSTPONED", "postponed"), ("SUSPENDED", "suspended"),
+    ("CANCELLED", "cancelled")])
+def test_every_status_has_a_word(frozen, status, word):
+    m = data.match(1, "2030-01-12T19:45:00Z", status, data.ROMA, data.LAZIO, score=(1, 0))
+    assert football._match(m)["status"] == word
+
+
+def test_times_are_local_across_the_clock_change(frozen):
+    def at(utc):
+        return football._match(data.match(1, utc, "TIMED", data.ROMA, data.LAZIO))
+    assert (at("2030-10-26T13:00:00Z")["time"], at("2030-10-27T13:00:00Z")["time"]) == ("14:00", "13:00")
+    football._ZONE = ZoneInfo("Europe/Rome")         # the fixture puts it back
+    late = at("2030-01-12T23:30:00Z")
+    assert (late["date"], late["time"], late["day"]) == ("2030-01-13", "00:30", "Sunday 13 January")
+
+
+@pytest.mark.parametrize("change", [
+    {"utcDate": "soon"}, {"utcDate": None}, {"status": "ON_FIRE"}, {"homeTeam": None},
+    {"awayTeam": {"id": "x", "name": "Lazio"}}, {"score": {"fullTime": {"home": "two", "away": 1}}}])
+def test_odd_matches_are_left_out_or_cleaned(frozen, change):
+    m = dict(data.match(1, "2030-01-12T19:45:00Z", "FINISHED", data.ROMA, data.LAZIO, score=(2, 1)), **change)
+    read = football._match(m)
+    assert read is None or read["score"] is None
+    named = football._match(data.match(1, "2030-01-12T19:45:00Z", "TIMED",
+                                       data.team(5, "Evil\u202e\x00" + "x" * 300), data.LAZIO))
+    assert named["home"]["name"].startswith("Evil") and len(named["home"]["name"]) <= 40
+    assert "\u202e" not in named["home"]["name"] and "\x00" not in named["home"]["name"]
+
+
+def test_odd_table_rows_never_crash():
+    reply = data.standings(data.row(1, data.ROMA, 19, 12, 4, 3, 20, 40))
+    reply["standings"][1]["table"] += [None, {"position": "first"}, {"team": {"id": 1}},
+                                       data.row(3, data.LAZIO, "x", 1, 1, 1, 0, 30)]
+    rows = football._table(reply)
+    assert [r["team"]["name"] for r in rows] == ["Roma", "Lazio"] and rows[1]["played"] is None
+    assert football._table({"standings": "nope"}) == [] and football._table({}) == []
+
+
+@pytest.mark.parametrize("n, word", [(1, "1st"), (2, "2nd"), (3, "3rd"), (4, "4th"), (11, "11th"),
+    (12, "12th"), (13, "13th"), (21, "21st"), (22, "22nd"), (23, "23rd"), (101, "101st"), (111, "111th")])
+def test_positions_in_words(n, word):
+    assert football.ordinal(n) == word
