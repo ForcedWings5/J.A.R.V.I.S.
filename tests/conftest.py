@@ -3,11 +3,15 @@
 Two safety rules live here:
 1. Tests use a throwaway in-memory database, never your real jarvis.db.
 2. Tests use a frozen clock (Monday 2030-01-07, 08:00), so they pass on any day.
+3. Tests never read the real .env, and never see a real football key.
 """
 import os
 
 # This must happen BEFORE anything imports config, because the database opens on import.
 os.environ["JARVIS_DB"] = ":memory:"
+# The same for secrets: an empty file instead of .env, and no key from the shell
+os.environ["JARVIS_ENV"] = os.devnull
+os.environ.pop("FOOTBALL_DATA_KEY", None)
 
 from datetime import datetime  # noqa: E402
 

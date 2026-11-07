@@ -11,6 +11,9 @@ ROOT = Path(__file__).resolve().parent
 # The real calendar and tasks. Tests and evals set JARVIS_DB=":memory:" before
 # importing anything, so they never touch it.
 DB_PATH = os.environ.get("JARVIS_DB", str(ROOT / "jarvis.db"))
+# Secrets, such as the football key, live in .env (ignored by git), never in code. Tests set
+# JARVIS_ENV to an empty file, so they never read the real one.
+ENV_FILE = Path(os.environ.get("JARVIS_ENV", str(ROOT / ".env")))
 BACKUP_DIR = ROOT / "backups"
 BACKUP_KEEP_DAYS = 7
 # Encrypted copies, made for leaving this Mac (SECURITY.md section 5). Locked with the
