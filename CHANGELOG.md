@@ -1219,6 +1219,38 @@ The last stage of the Weather space (`docs/specs/2026-11-05-weather-space.md`, n
     - two searches in one turn show only the last.
 - **Not checked**: Safari, the microphone (asking by voice), and how it looks in motion.
 
+## 59. Sports, stage 1: one shared door to the internet
+
+The Sports space was designed on 2026-11-07 (spec `docs/specs/2026-11-07-sports-space.md`): a hub where the sports' balls float, Football first, with five leagues picked on the globe, Roma and Newcastle themes, and a silhouette that kicks the ball onto the league's country. Its data comes from football-data.org's free plan, the second outside service after Open-Meteo. Stage 1 of 5 prepares for it. **Nothing is fetched from football-data.org yet, and nothing on the page changes.**
+
+- **One door to the internet, `outside.py`.** Weather's request code moved there unchanged:
+  - the fixed addresses, now Open-Meteo's 3 and football-data.org's 13;
+  - redirects refused;
+  - certificates checked with truststore;
+  - 5 seconds and 1 MB at most;
+  - NaN refused;
+  - a log line with the host and time only.
+  - **Why move it:** with two services, two doors would mean two places to check and keep in sync. Now there is still exactly one place where JARVIS goes online (owner's choice, 2026-11-07).
+  - **New:** a request can carry a header (for the football key), which is never logged. Failures now say what kind they are: `unreachable`, `refused` (HTTP 400, 401 or 403: the key was not accepted) or `busy` (429).
+- **Weather is unchanged.** `weather._get` still allows only its own three addresses, and any failure is still "Couldn't reach the weather service." New tests pin both, including Open-Meteo answering 400, 403, 429 or 500.
+- **The 13 football addresses are built in `config.py`** from the five league codes (PL, SA, PD, BL1, FL1), the Champions League's table (CL), and the two followed teams. The team ids (Roma 100, Newcastle 67) come from memory, because the API's docs do not list them; stage 2 checks them against a real reply.
+- **A rate guard.** The free plan allows 10 requests a minute, and going over can get a key blocked.
+  - JARVIS allows itself 9 a minute to football-data.org and refuses the next before it is sent.
+  - A request that was sent and failed still counts.
+  - **Tested:** 20 requests at the same moment let exactly 9 through.
+  - Open-Meteo has no guard.
+- **The football key** (`football._key()`, the only thing in `football.py` so far):
+  - It is read from the `FOOTBALL_DATA_KEY` environment variable, else from `.env`, which git ignores.
+  - The usual ways of writing it work: quotes, spaces round `=`, `export`, Windows line ends.
+  - A missing or unreadable file, or a value that is not 10 to 64 letters and digits, counts as no key.
+  - It is read on every call, so a key added while JARVIS runs works without a restart.
+  - **Tests never read the real `.env`:** `conftest.py` points `JARVIS_ENV` at an empty file and removes any key from the shell.
+- **Tests:** 728, up from 684. The door's own tests moved from `test_weather.py` to `test_outside.py`. The tests, `tests/weather_data.py` and the eval runner now replace `outside._fetch`.
+- **Checked live:** one real Weather search went through the new door ("outside request: geocoding-api.open-meteo.com, ok in 605 ms", then Paris).
+- **Checked with the real model:** the eval runner's new hook works. `python -m evals --runs 1 -k weather_find_paris` passed 2 of 2 (the filter matches two cases).
+- **No prompt change**, so no full eval.
+- **Not checked:** football-data.org itself (nothing is fetched until stage 2), the team ids, and the key with a real account.
+
 ---
 
 ## Status
@@ -1248,6 +1280,7 @@ The last stage of the Weather space (`docs/specs/2026-11-05-weather-space.md`, n
 | Weather, stage 2: the server (section 56) | Done; checked live against Open-Meteo; no page or tools yet |
 | Weather, stage 3: the page (section 57) | Done: evals 207/210 (prompt `7e42e25bef37`); checked in a demo and live; not yet in Safari or seen in motion; no tools yet |
 | Weather, stage 4: asking JARVIS (section 58) | Done: evals 228/231 (prompt `0a1a37f7968e`), plus a later-in-the-day case 3/3; checked in a demo and live; not yet in Safari or by voice |
+| Sports, stage 1: one shared door (section 59) | Done: 728 tests; Weather checked live through the new door; nothing fetched from football-data.org yet |
 | Other websites (Origin check) | Done: attack shown and then blocked in the real browser, dashboard unaffected, 406 tests (section 36) |
 | Voice input, voice output, voice mode switch | Tested and working |
 | Calendar views (compact agenda, year/month/week/day) | Layout confirmed good; all four views checked in a demo, on Home and in Work (section 51) |

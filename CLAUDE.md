@@ -5,7 +5,8 @@ dashboard (calendar, to-do list, chat, voice), a local language model through Ol
 SQLite. Nothing personal leaves the machine unencrypted, and only the owner holds the key (the
 encrypted backup copy). JARVIS may fetch public data over HTTPS from a short list of fixed
 addresses, written in code; those requests carry only what the service needs to answer, and the
-model never chooses the address (today: Open-Meteo, for Weather; `SECURITY.md` section 5). The
+model never chooses the address (today: Open-Meteo, for Weather; football-data.org, for Sports,
+is on the list but not fetched yet; `SECURITY.md` section 5). The
 owner is learning Python and software engineering, so explanations matter as much as the code.
 
 Read `README.md` (setup, running), `CHANGELOG.md` (history, incidents, status), `plan.md`
@@ -28,6 +29,7 @@ static/index.html ──HTTP, 127.0.0.1 only──> server.py (FastAPI)
                                               ├─ speech.py (Kokoro, loaded on first use) + speech_text.py
                                               ├─ workday.py (GET /day: free time, what's next, deadlines; reads jcal and tasks)
                                               ├─ weather.py (POST /weather/*: places, forecast, air quality; HTTPS to Open-Meteo only)
+                                              │     └─ outside.py (the one door to the internet: fixed addresses, the rate guard)
                                               ├─ mlx_whisper (imported on first /transcribe)
                                               └─ backup_db.py (runs at import, before the database opens)
             jcal.py, tasks.py, notes.py ──> database.py (one connection + one lock) ──> jarvis.db
@@ -45,7 +47,9 @@ is checked in code, never left to the model.** The model chooses tools; code val
 | `jcal.py` | Calendar logic: durations, repeats (stored as one row, expanded on read), exceptions, conflicts, finished/upcoming labels. |
 | `tasks.py`, `calc.py` | To-do list; safe arithmetic (parses the expression with `ast`, never `eval`). |
 | `workday.py` | The Work space's figures, worked out in code: free time today, what's next, deadline states (settings `WORK_*` and `DEADLINE_WINDOW_DAYS` in `config.py`). |
-| `weather.py` | Weather from Open-Meteo: the one door to the internet (`_fetch`, called only by `_get`, which takes one of the three fixed `WEATHER_*_URL` addresses), the figures worked out in code (units, labels, rain windows, the spoken line), place search with server-issued ids, the forecast summary, a 10-minute in-memory cache, and the place on screen. Its tools come last: `find_place` (returns `ShowPlaces`; the model hears names only, never ids) and `get_forecast` (facts written here, both units, for the place the user confirmed). Spec: `docs/specs/2026-11-05-weather-space.md`. |
+| `outside.py` | The one door to the internet, shared by Weather and Football: `get(address, params, headers=None)` takes only one of the fixed addresses (`WEATHER_*_URL`, `FOOTBALL_ADDRESSES`), refuses redirects, checks certificates with truststore, limits time and size, refuses NaN, allows 9 football requests a minute, and logs host and time only (never an address or header). Failures are `OutsideError` with a `kind`: `unreachable`, `refused` (the key) or `busy`. `_fetch` is the only function that touches the network. |
+| `football.py` | Football for the Sports space, built in stages (spec `docs/specs/2026-11-07-sports-space.md`). Stage 1: only `_key()`, the football-data.org key from the environment or `.env` (`config.ENV_FILE`). |
+| `weather.py` | Weather from Open-Meteo: its requests go through `outside.get` (`_get` allows only the three `WEATHER_*_URL` addresses and turns any failure into `WeatherError`), the figures worked out in code (units, labels, rain windows, the spoken line), place search with server-issued ids, the forecast summary, a 10-minute in-memory cache, and the place on screen. Its tools come last: `find_place` (returns `ShowPlaces`; the model hears names only, never ids) and `get_forecast` (facts written here, both units, for the place the user confirmed). Spec: `docs/specs/2026-11-05-weather-space.md`. |
 | `spaces.py` | The `open_space` tool (home, work, weather): checks the name against `config.SPACES` and returns `ShowSpace`; the page switches on the `space` event. |
 | `notes.py` | Notes and memory (FTS5 search). Trivial preferences only; secrets refused; saving and forgetting go through the confirmation card. |
 | `static/` | The dashboard: `index.html` (structure), `css/jarvis.css`, `css/motion.css`, `js/*.js` (plain scripts loaded in order and sharing globals: orb, chat, tasks, notes, voice, calendar, app, spaces, space-work, globe, space-weather, motion; no build step). `data/coastlines.json` is the globe's coastlines, made by `scripts/make_coastlines.py`. Weather: `globe.js` only draws (an orthographic projection on a canvas; its spin and zoom have a safety timeout, as `motion.js`'s sequences do), and `space-weather.js` runs the search, the ping, the page and the home settings (kept in `localStorage`, never `jarvis.db`); its SVG helper `svg()` refuses `style` and `on...` attributes. Spaces: `<body data-space>` says which is shown and CSS lays it out; each space calls `registerSpace` (`spaces.js`), optionally with `ready` and `readout` for its opening animation, and its own files are `space-<name>.js` and `css/space-<name>.css` (design: `docs/specs/2026-10-27-spaces-and-work.md`). `jarvis.css` is the glass look (tint, blur and rim in `--glass`, `--blur`, `--rim`). `motion.js` only wraps existing functions to add animations (`switchSpace` too: the real switch runs once, mid-sequence); its classes start with `fx-`. Served by `/` and `/static`. |
@@ -119,11 +123,12 @@ of the risk and the owner's agreement first.
   policy and scans `index.html` and `static/js/` for code it would block; the scans miss
   attributes set at run time, so a demo with a violation listener is the real check. Loosening
   it needs the owner's agreement.
-- Outside requests go only through `weather._get`, to the three fixed HTTPS addresses in
-  `config.py` (`WEATHER_*_URL`). Code builds every request; the model never supplies an
-  address or coordinates; redirects are refused; certificates are checked against macOS's list
+- Outside requests go only through `outside.get`, to the fixed HTTPS addresses in `config.py`
+  (`WEATHER_*_URL`, `FOOTBALL_ADDRESSES`). Code builds every request; the model never supplies
+  an address, id or coordinates; redirects are refused; certificates are checked against macOS's list
   (`truststore`), and that check is never turned off; coordinates are rounded to 2 decimals;
-  the log records hosts and times, never addresses. A new outside service, or more data in a
+  the log records hosts and times, never addresses or headers; football requests are capped at 9
+  a minute, refused before sending; the football key lives only in `.env`. A new outside service, or more data in a
   request, needs the owner's agreement and the same rules (`SECURITY.md` section 5).
 - Input limits: uploads 10 MB (unknown file extensions are saved as `.webm`), the temporary
   audio file is always deleted;
@@ -171,9 +176,10 @@ python -m evals         # full suite, 78 cases x 3 runs, about 20 minutes, with 
 - Tests run with a frozen clock (Monday 2030-01-07 08:00, `jcal.datetime` is patched) and an
   in-memory database emptied before each test. Use `fakes.FakeModel` instead of a real model,
   and `TestClient(server.app, base_url="http://127.0.0.1")` (other hosts are refused).
-- Tests never go online: `conftest.py`'s `no_internet` makes `weather._fetch` fail loudly and
-  clears weather's cache and place. Weather tests use `tests/weather_data.py` (made-up replies
-  shaped like Open-Meteo's, and `serve`, which answers `_fetch` with them).
+- Tests never go online: `conftest.py`'s `no_internet` makes `outside._fetch` fail loudly,
+  forgets the rate guard, and clears weather's cache and place. `JARVIS_ENV` points at an empty
+  file and any `FOOTBALL_DATA_KEY` from the shell is removed, so tests never see a real key. Weather tests use `tests/weather_data.py` (made-up replies
+  shaped like Open-Meteo's, and `serve`, which answers `outside._fetch` with them).
 - **Prompt or tool-description changes:** run the full eval before and after, and put both
   scores and the prompt hash in the commit message. The eval prints the hash; if it is
   unchanged, the model saw identical input and score differences are run-to-run variation.

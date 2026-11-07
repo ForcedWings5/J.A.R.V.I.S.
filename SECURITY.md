@@ -50,10 +50,11 @@ A threat actor is anyone or anything that could cause harm, including accidents.
   Reachable only from this Mac, but including from other browser tabs.
 - **Files on disk**: `jarvis.db`, `backups/`, `logs/`. Readable by anything running as me.
 - **The model**: anything it reads can try to steer it.
-- **Dependencies**: 80 packages, 9 chosen directly for JARVIS (`requirements.in`; `truststore`, already installed, became the ninth for Weather) and a few for the checks (`requirements-dev.in`).
+- **Dependencies**: 80 packages, 9 chosen directly for JARVIS (`requirements.in`; `truststore`, already installed, became the ninth for Weather, and is used by the shared door, `outside.py`) and a few for the checks (`requirements-dev.in`).
 - **Off-disk backups** (planned, see section 5): a new copy of the data outside this Mac.
-- **Outside data** (Weather, section 5): replies from Open-Meteo, read by JARVIS's code, and
-  the places asked about, sent to it.
+- **Outside data** (section 5): replies from Open-Meteo, read by JARVIS's code, and the places
+  asked about, sent to it. Every request goes through one door, `outside.py`. football-data.org
+  is on its list for Sports, but nothing is fetched from it yet (Sports stage 2).
 
 ## 4. Controls in place today
 
@@ -67,7 +68,7 @@ Each of these is in the code or the system and has been checked.
 | `TrustedHostMiddleware` allows only `127.0.0.1` and `localhost` | DNS rebinding (a website pretending to be this Mac). |
 | JSON endpoints refuse `text/plain` bodies (pinned by a test) | Other websites driving `/chat`, `/confirm` or `/tasks`. |
 | Every POST whose `Origin` is not JARVIS's own address is refused with 403, before any work (`server.py`, pinned by tests) | Other websites making JARVIS act or work, such as running Whisper through `/transcribe`. A second, independent lock on the JSON endpoints. Shown with `experiments/attack_page.html`: before, "transcribed 32044 bytes"; after, 403. |
-| Outside requests go only to three fixed HTTPS addresses in `config.py`, built by code, through one function (`weather._get`), with redirects refused, certificates checked against macOS's own list (`truststore`), a 5 s limit on connecting and on each wait for data (not on the whole request), a 1 MB cap and coordinates rounded to 2 decimals (pinned by tests) | JARVIS being sent anywhere else, by the model or by a reply; someone between this Mac and the service pretending to be it. Checked live: an expired certificate and a wrong host name were refused (CHANGELOG section 56). |
+| Outside requests go only to fixed HTTPS addresses in `config.py` (Open-Meteo's 3 and football-data.org's 13), built by code, through one function (`outside.get`, CHANGELOG section 59), with redirects refused, certificates checked against macOS's own list (`truststore`), a 5 s limit on connecting and on each wait for data (not on the whole request), a 1 MB cap, coordinates rounded to 2 decimals, at most 9 football requests a minute (refused before sending), and the log and errors never holding an address or a header (pinned by tests) | JARVIS being sent anywhere else, by the model or by a reply; someone between this Mac and the service pretending to be it. Checked live: an expired certificate and a wrong host name were refused (CHANGELOG section 56). |
 | Outside names (places, regions, countries) are cleaned of control and invisible characters and cut to 60 characters before use (`weather.clean`) | Odd or hidden text from a reply reaching the page or, later, the model. |
 | Every response carries a Content Security Policy (`server.py`, pinned by tests): only JARVIS's own scripts, styles, images, fonts and connections; audio also from `blob:` and `data:`; no plug-ins; never inside another site's page. (Except a crash's plain-text 500 reply, which has nothing to protect.) | Injected code running or sending data to another site, and clickjacking (a site hiding JARVIS under its own buttons so a click lands on Confirm). Checked in a demo: an inline script, an inline style, `eval`, a fetch to another site and a frame were all blocked (CHANGELOG section 55). |
 | Deletes and edits only through a confirmation card and `POST /confirm` | The model deleting or changing events by itself. |
@@ -187,6 +188,29 @@ agreed for Sports and kept for Weather):
   as a real number or as cleaned text, or treated as missing (`weather._num`, pinned by tests),
   so the page and the conversation never get raw reply text. Anything longer, such as news,
   needs its own prompt-injection design first.
+- **The door moved** (CHANGELOG section 59): when Football became the second service, the
+  request code moved from `weather.py` to `outside.py`, unchanged, so there is still exactly one
+  place where JARVIS goes online. Weather says what it said before, for any failure.
+
+### Outside data: Football (Sports)
+
+The second outside service, for the Sports space (`docs/specs/2026-11-07-sports-space.md`).
+Being built in stages; stage 1 (CHANGELOG section 59) added only the door's rules below, and
+nothing is fetched from football-data.org until stage 2. Agreed with me on 2026-11-07.
+
+- **What will go out**, to football-data.org only: my key (in the `X-Auth-Token` header), a
+  competition code (`SA`) or a team id, and a date range. With it, as with every website, the
+  Mac's IP address. Nothing from the calendar, tasks, notes or conversation.
+- **The key links the requests to my account**, and so to the email I signed up with:
+  football-data.org can see which leagues and teams I look at, and when. Accepted (section 7).
+- **The addresses are fixed**: 13, built in `config.py` from the five league codes, `CL` and
+  the two followed teams' ids. The model only ever picks from fixed names.
+- **A rate guard**: the free plan allows 10 requests a minute, and going over can get a key
+  blocked. `outside.py` allows 9 a minute to football-data.org and refuses the next before it
+  is sent; requests that failed still count.
+- **The key** lives in `.env` (ignored by git), never in code. It is read by `football._key()`,
+  goes only into the request header, and is never logged, never in an error, and never sent
+  to the page or the model. Tests never read the real `.env` (`JARVIS_ENV`).
 
 ## 6. Known gaps
 
@@ -220,6 +244,9 @@ In rough order of importance.
 - **Open-Meteo sees the Mac's IP address and the places I ask about**, and keeps its logs up to
   90 days (section 5, Outside data). Accepted: a place, not a person, with coordinates rounded
   to about 1 km.
+- **football-data.org can link what I look at to my account** (section 5, Outside data:
+  Football): the key names the account, which has my email. Accepted: it is public sports data
+  and an interest in two clubs, nothing personal from JARVIS.
 
 ## 8. When to revisit
 
