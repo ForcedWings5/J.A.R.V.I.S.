@@ -69,3 +69,45 @@ body.reduce .sp-hub, body.reduce .sp-picker, body.reduce .sp-league { animation:
   padding:10px 12px; border-radius:12px; cursor:pointer; font:inherit; font-size:14px;
   color:var(--text); background:rgba(76,201,240,.06); border:1px solid transparent; text-align:left; }
 .sp-league-item:hover, .sp-league-item:focus-visible { border-color:var(--line-strong); }
+
+/* A league's page: the head, then the panels in a grid, then the credit */
+.sp-league { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:16px; }
+.sp-league > * { flex:none; }      /* the page scrolls; its parts keep their height */
+.sp-head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.sp-title { font-size:22px; font-weight:600; color:var(--team-title, var(--accent)); }
+.sp-status { display:flex; align-items:center; gap:10px; font-size:14px; }
+#sp-retry { padding:7px 14px; font-size:12px; }
+#sp-retry[hidden] { display:none; }
+.sp-grid { display:grid; gap:16px; grid-template-columns:repeat(3, minmax(0, 1fr)); align-items:start; }
+#sp-table-panel { grid-row:span 2; }
+.sp-grid .panel[hidden] { display:none; }
+.sp-foot { display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; font-size:12px; padding-bottom:4px; }
+
+/* Tables */
+.sp-table { width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+.sp-table th { color:var(--muted); font-weight:500; text-align:right; padding:4px 6px; }
+.sp-table td { text-align:right; padding:5px 6px; border-top:1px solid rgba(120,215,255,.08); }
+.sp-table th:nth-child(2), .sp-table td.sp-team { text-align:left; width:100%; }
+.sp-table tr.sp-mine td { background:var(--team-row, rgba(76,201,240,.16)); color:var(--text); font-weight:600; }
+
+/* Matches, results and the next match */
+.sp-match { display:grid; grid-template-columns:auto 1fr auto; gap:4px 10px; align-items:baseline; padding:6px 0;
+  border-top:1px solid rgba(120,215,255,.08); font-size:13px; }
+.sp-match:first-child { border-top:none; }
+.sp-when { font-size:12px; min-width:110px; }
+.sp-tag { font-size:11px; }
+.sp-countdown { font-size:26px; font-weight:600; color:var(--team-2, var(--accent)); }
+.sp-next-line { font-size:16px; margin:6px 0 4px; }
+.sp-result { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px;
+  margin-right:6px; border-radius:8px; font-size:13px; font-weight:700; cursor:default; }
+.sp-W { background:rgba(61,220,151,.22); color:var(--green); }
+.sp-D { background:rgba(240,180,41,.20); color:var(--amber); }
+.sp-L { background:rgba(255,107,107,.20); color:var(--red); }
+
+/* The two followed clubs' colours; the glass stays, only the accents change (spec) */
+#space-sports[data-theme="roma"] { --team:#c8323f; --team-2:#f0bc42; --team-title:#f0bc42; --team-row:rgba(142,31,47,.55); }
+#space-sports[data-theme="roma"] .sp-head { border-color:rgba(240,188,66,.45);
+  background-image:linear-gradient(100deg, rgba(142,31,47,.55), rgba(142,31,47,.12)); }
+#space-sports[data-theme="newcastle"] { --team:#f2f2f2; --team-2:#b8c2cc; --team-title:#ffffff; --team-row:rgba(242,242,242,.16); }
+#space-sports[data-theme="newcastle"] .sp-head { border-color:rgba(184,194,204,.5);
+  background-image:repeating-linear-gradient(90deg, rgba(242,242,242,.10) 0 22px, rgba(0,0,0,.25) 22px 44px); }

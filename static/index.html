@@ -149,7 +149,23 @@
     </div>
     <div class="panel sp-leagues"><div class="h"><span class="l">PICK A LEAGUE</span></div><div id="sp-league-list"></div></div>
   </div>
-  <div id="sp-league" class="sp-league"></div>
+  <div id="sp-league" class="sp-league">
+    <div class="panel sp-head">
+      <div class="sp-head-text"><div id="sp-title" class="sp-title"></div><div id="sp-subtitle" class="muted"></div></div>
+      <div class="sp-status" aria-live="polite"><span id="sp-status"></span><button id="sp-retry" class="btn ghost" hidden>TRY AGAIN</button></div>
+    </div>
+    <div class="sp-grid">
+      <div class="panel sp-team-only" id="sp-next-panel"><div class="h"><span class="l">NEXT MATCH</span></div><div id="sp-next"></div></div>
+      <div class="panel sp-team-only" id="sp-form-panel"><div class="h"><span class="l">FORM</span><span class="r">LAST 5</span></div><div id="sp-form"></div></div>
+      <div class="panel" id="sp-table-panel"><div class="h"><span class="l">TABLE</span></div><div id="sp-table"></div></div>
+      <div class="panel" id="sp-results-panel"><div class="h"><span class="l" id="sp-results-title">LATEST RESULTS</span></div><div id="sp-results"></div></div>
+      <div class="panel" id="sp-upcoming-panel"><div class="h"><span class="l" id="sp-upcoming-title">UPCOMING</span></div><div id="sp-upcoming"></div></div>
+      <div class="panel sp-team-only" id="sp-fixtures-panel"><div class="h"><span class="l">FIXTURES</span></div><div id="sp-fixtures"></div></div>
+      <div class="panel sp-team-only" id="sp-cl-panel"><div class="h"><span class="l">CHAMPIONS LEAGUE</span></div><div id="sp-cl"></div></div>
+    </div>
+    <!-- football-data.org's free plan: this credit next to its data -->
+    <div class="sp-foot muted"><div id="sp-cup"></div><div><span id="sp-credit">Football data provided by the Football-Data.org API</span> · <span id="sp-updated"></span></div></div>
+  </div>
 </section>
 
 <script src="/static/js/orb.js"></script>

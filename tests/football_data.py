@@ -129,3 +129,45 @@ def serie_a_replies(cl=False):
     roma = list(ROMA_SEASON) + ([CL_GAME] if cl else [])
     return {"/competitions/SA/standings": SA_TABLE, "/competitions/SA/matches": SA_ROUNDS,
             "/teams/100/matches": matches(*roma), "/competitions/CL/standings": CL_TABLE}
+
+
+# Newcastle's Premier League page on Monday 2030-01-07 (the demo uses it): 6 finished games,
+# then 4 to come, and no Champions League games
+ARSENAL = team(57, "Arsenal FC", "Arsenal")
+LIVERPOOL = team(64, "Liverpool FC", "Liverpool")
+SPURS = team(73, "Tottenham Hotspur FC", "Tottenham")
+VILLA = team(58, "Aston Villa FC", "Aston Villa")
+
+
+def _pl(id, utc, status, home, away, score=None, md=None):
+    return match(id, utc, status, home, away, score, md, code="PL", name="Premier League")
+
+
+NEWCASTLE_SEASON = (
+    _pl(501, "2029-12-01T15:00:00Z", "FINISHED", NEWCASTLE, ARSENAL, (1, 2), 14),
+    _pl(502, "2029-12-07T15:00:00Z", "FINISHED", LIVERPOOL, NEWCASTLE, (3, 0), 15),
+    _pl(503, "2029-12-14T15:00:00Z", "FINISHED", NEWCASTLE, SPURS, (2, 1), 16),
+    _pl(504, "2029-12-21T17:30:00Z", "FINISHED", VILLA, NEWCASTLE, (1, 1), 17),
+    _pl(505, "2029-12-28T15:00:00Z", "FINISHED", NEWCASTLE, LIVERPOOL, (0, 2), 18),
+    _pl(506, "2030-01-04T15:00:00Z", "FINISHED", ARSENAL, NEWCASTLE, (2, 2), 19),
+    _pl(507, "2030-01-11T12:30:00Z", "TIMED", NEWCASTLE, VILLA, None, 20),
+    _pl(508, "2030-01-18T15:00:00Z", "TIMED", SPURS, NEWCASTLE, None, 21),
+    _pl(509, "2030-01-25T17:30:00Z", "TIMED", NEWCASTLE, ARSENAL, None, 22),
+    _pl(510, "2030-02-01T15:00:00Z", "SCHEDULED", LIVERPOOL, NEWCASTLE, None, 23),
+)
+PL_TABLE = standings(row(1, LIVERPOOL, 19, 15, 3, 1, 30, 48), row(2, ARSENAL, 19, 13, 4, 2, 22, 43),
+                     row(3, VILLA, 19, 11, 4, 4, 9, 37), row(4, SPURS, 19, 10, 3, 6, 6, 33),
+                     row(11, NEWCASTLE, 19, 7, 5, 7, -1, 26))
+PL_ROUNDS = matches(
+    _pl(506, "2030-01-04T15:00:00Z", "FINISHED", ARSENAL, NEWCASTLE, (2, 2), 19),
+    _pl(601, "2030-01-04T17:30:00Z", "FINISHED", LIVERPOOL, SPURS, (2, 0), 19),
+    _pl(602, "2030-01-05T14:00:00Z", "FINISHED", VILLA, team(65, "Manchester City FC", "Man City"), (1, 3), 19),
+    _pl(507, "2030-01-11T12:30:00Z", "TIMED", NEWCASTLE, VILLA, None, 20),
+    _pl(603, "2030-01-11T15:00:00Z", "TIMED", SPURS, ARSENAL, None, 20),
+    _pl(604, "2030-01-12T16:30:00Z", "POSTPONED", LIVERPOOL, team(65, "Manchester City FC", "Man City"), None, 20))
+
+
+def newcastle_replies():
+    """The replies for the Premier League page on 2030-01-07."""
+    return {"/competitions/PL/standings": PL_TABLE, "/competitions/PL/matches": PL_ROUNDS,
+            "/teams/67/matches": matches(*NEWCASTLE_SEASON)}
