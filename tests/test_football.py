@@ -311,3 +311,56 @@ def test_a_refused_key_never_falls_back_to_an_earlier_copy(monkeypatch, frozen):
 def test_an_unknown_league_is_refused():
     with pytest.raises(ValueError):
         football.league_page("eredivisie")
+
+
+# ---------- final review fixes ----------
+
+@pytest.mark.parametrize("utc, zone", [("9999-12-31T23:30:00Z", "Europe/Rome"),
+                                       ("0001-01-01T00:30:00Z", "America/New_York")])
+def test_a_date_at_the_edge_of_the_calendar_is_left_out(frozen, utc, zone):
+    football._ZONE = ZoneInfo(zone)                  # the fixture puts it back
+    assert football._match(data.match(1, utc, "TIMED", data.ROMA, data.LAZIO)) is None
+
+
+def test_an_absurdly_large_number_is_missing(frozen):
+    m = data.match(1, "2030-01-05T17:00:00Z", "FINISHED", data.ROMA, data.LAZIO, (10 ** 400, 1), 19)
+    assert football._match(m)["score"] is None
+
+
+def rounds(*specs):
+    """Matches from (id, utc, status, matchday) tuples, between made-up teams."""
+    teams = [data.team(500 + i, f"Team {i}") for i in range(40)]
+    return [football._match(data.match(i, utc, status, teams[2 * n], teams[2 * n + 1],
+                                       (1, 0) if status == "FINISHED" else None, md))
+            for n, (i, utc, status, md) in enumerate(specs)]
+
+
+def round_of(md, status, day, count, first_id):
+    return [(first_id + k, f"2030-01-{day:02d}T{12 + k:02d}:00:00Z", status, md) for k in range(count)]
+
+
+def test_a_postponed_game_does_not_take_over_the_next_round(frozen):
+    ms = rounds(*round_of(19, "FINISHED", 4, 4, 1), (9, "2030-01-05T17:00:00Z", "POSTPONED", 19),
+                *round_of(20, "TIMED", 11, 5, 20))
+    upcoming = football.next_round(ms)
+    assert upcoming["matchday"] == 20 and len(upcoming["matches"]) == 5
+
+
+def test_a_rescheduled_game_does_not_take_over_the_next_round(frozen):
+    ms = rounds(*round_of(19, "FINISHED", 4, 4, 1), (9, "2030-01-09T19:45:00Z", "TIMED", 15),
+                *round_of(20, "TIMED", 11, 5, 20))
+    assert football.next_round(ms)["matchday"] == 20
+
+
+def test_a_game_brought_forward_does_not_take_over_the_latest_round(frozen):
+    ms = rounds(*round_of(19, "FINISHED", 4, 4, 1), (9, "2030-01-02T19:45:00Z", "FINISHED", 21),
+                *round_of(20, "TIMED", 11, 5, 20))
+    latest = football.latest_round(ms)
+    assert latest["matchday"] == 19 and len(latest["matches"]) == 4
+
+
+def test_a_half_played_round_stays_the_round(frozen):
+    """The real Serie A on 2026-11-07: matchday 11 half played, matchday 12 all to come."""
+    ms = rounds(*round_of(11, "FINISHED", 6, 5, 1), *round_of(11, "TIMED", 8, 5, 10),
+                *round_of(12, "TIMED", 21, 5, 20))
+    assert (football.latest_round(ms)["matchday"], football.next_round(ms)["matchday"]) == (11, 11)

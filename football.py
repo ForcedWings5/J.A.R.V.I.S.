@@ -116,10 +116,9 @@ def _local(utc) -> datetime | None:
     if not _UTC_STAMP.fullmatch(stamp):
         return None
     try:
-        moment = datetime.fromisoformat(stamp)
-    except ValueError:
+        return datetime.fromisoformat(stamp).astimezone(_ZONE).replace(tzinfo=None)
+    except (ValueError, OverflowError):    # not a date, or one at the calendar's edge
         return None
-    return moment.astimezone(_ZONE).replace(tzinfo=None)
 
 
 def _team(t) -> dict | None:
@@ -199,22 +198,37 @@ def _when(m: dict) -> tuple[str, str]:
     return m["date"], m["time"]
 
 
+def _real_rounds(matches: list[dict]) -> set[int]:
+    """The matchdays with at least FOOTBALL_ROUND_MIN_MATCHES of these matches, or all of them
+    if none has that many (the start of a season). A game postponed, rescheduled or brought
+    forward is usually one or two of its round, so it cannot take a round's place (final
+    review, stage 2)."""
+    counts: dict[int, int] = {}
+    for m in matches:
+        counts[m["matchday"]] = counts.get(m["matchday"], 0) + 1
+    real = {day for day, n in counts.items() if n >= config.FOOTBALL_ROUND_MIN_MATCHES}
+    return real or set(counts)
+
+
 def latest_round(matches: list[dict]) -> dict:
-    """The finished matches of the highest matchday that has any, in kick-off order."""
+    """The finished matches of the highest real round that has any, in kick-off order."""
     done = [m for m in matches if m and m["status"] == "finished" and m["matchday"] is not None]
     if not done:
         return {"matchday": None, "matches": []}
-    day = max(m["matchday"] for m in done)
+    day = max(_real_rounds(done))
     return {"matchday": day, "matches": sorted((m for m in done if m["matchday"] == day), key=_when)}
 
 
 def next_round(matches: list[dict]) -> dict:
-    """The matches still to play of the lowest matchday that has any, in kick-off order."""
-    pending = [m for m in matches if m and m["status"] in _PENDING and m["matchday"] is not None]
-    if not pending:
+    """The lowest real round with matches to play (upcoming or live), in kick-off order, with
+    that round's postponed and suspended games too, so they show as such."""
+    ms = [m for m in matches if m and m["matchday"] is not None]
+    to_play = [m for m in ms if m["status"] in ("upcoming", "live")]
+    if not to_play:
         return {"matchday": None, "matches": []}
-    day = min(m["matchday"] for m in pending)
-    return {"matchday": day, "matches": sorted((m for m in pending if m["matchday"] == day), key=_when)}
+    day = min(_real_rounds(to_play))
+    return {"matchday": day, "matches": sorted(
+        (m for m in ms if m["matchday"] == day and m["status"] in _PENDING), key=_when)}
 
 
 def result_for(match: dict, team_id: int) -> str | None:

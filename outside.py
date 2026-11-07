@@ -157,7 +157,10 @@ def num(x) -> int | float | None:
     """x if it is a real, finite number, else None (True counts as a bool, not a 1)."""
     if isinstance(x, bool) or not isinstance(x, (int, float)):
         return None
-    return x if math.isfinite(x) else None
+    try:
+        return x if math.isfinite(x) else None
+    except OverflowError:               # an int too large for a float (final review, stage 2)
+        return None
 
 
 def text(x) -> str:

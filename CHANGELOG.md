@@ -1294,8 +1294,17 @@ JARVIS can now fetch football from football-data.org. `POST /sports/league` retu
   - **The real replies have the same shape as the made-up ones,** and every real match was read (Serie A 27 of 27, Roma 21 of 21, Premier League 20 of 20, Newcastle 16 of 16).
   - **Serie A, 4 requests:** Roma 2nd on 27 points, next match Saturday 21 November, a 36-row Champions League table. The current round was half played, so the latest and next round were both matchday 11, which is correct.
   - **Premier League, 3 requests:** Newcastle 11th on 12 points, and no Champions League games, so that table was rightly not asked for.
-- **Tests:** 799, up from 728.
+- **Tests:** 806, up from 728.
 - **Not checked:** the page (stage 3), JARVIS's tools (stage 5), and a live match during play.
+- **Final review** (a fresh reviewer of the whole branch, offline). It found the key well contained, the cache honest, and the readers moved without change. Two important findings, each first reproduced by a failing test, then fixed:
+  - **A reply with a date at the calendar's edge** (year 9999 in a zone ahead of UTC), **or a 400-digit number,** crashed the page with a 500. The bad reply was then kept, so the crash would repeat for up to 6 hours. Both are now read as missing, including in the shared number reader Weather uses.
+  - **One postponed, rescheduled or brought-forward game could take over a round.** For example, a game moved to a Tuesday hid the whole next round, which is common around the Supercoppa. A matchday now counts as "the round" only with at least 3 games to play (or 3 played). If none has 3, as at the start of a season, any does. The real case from the live check, a half-played round, still shows as the round; a test pins it.
+  - **Left for later:**
+    - several looks at the same page at once each send their own requests, so two quick looks use 8 of the minute's 9 (the page in stage 3 should ask once at a time);
+    - during an outage every look waits on every request before showing the earlier copy;
+    - "From 23:10" has no day after midnight (the page can use `updated`);
+    - `outside.clean`'s argument has the same name as the module's `text()`;
+    - the key-leak test covers 403 but not 429 or a timeout, which take the same path.
 
 ---
 
@@ -1327,7 +1336,7 @@ JARVIS can now fetch football from football-data.org. `POST /sports/league` retu
 | Weather, stage 3: the page (section 57) | Done: evals 207/210 (prompt `7e42e25bef37`); checked in a demo and live; not yet in Safari or seen in motion; no tools yet |
 | Weather, stage 4: asking JARVIS (section 58) | Done: evals 228/231 (prompt `0a1a37f7968e`), plus a later-in-the-day case 3/3; checked in a demo and live; not yet in Safari or by voice |
 | Sports, stage 1: one shared door (section 59) | Done: 728 tests; Weather checked live through the new door; nothing fetched from football-data.org yet |
-| Sports, stage 2: the football server (section 60) | Done: 799 tests; checked live with the owner's key (team ids, reply shapes, Serie A and Premier League pages); no page or tools yet |
+| Sports, stage 2: the football server (section 60) | Done: 806 tests; checked live with the owner's key (team ids, reply shapes, Serie A and Premier League pages); no page or tools yet |
 | Other websites (Origin check) | Done: attack shown and then blocked in the real browser, dashboard unaffected, 406 tests (section 36) |
 | Voice input, voice output, voice mode switch | Tested and working |
 | Calendar views (compact agenda, year/month/week/day) | Layout confirmed good; all four views checked in a demo, on Home and in Work (section 51) |

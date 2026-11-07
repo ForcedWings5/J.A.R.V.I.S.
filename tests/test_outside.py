@@ -205,6 +205,7 @@ def test_the_guards_minute_ends_exactly_at_60_seconds(monkeypatch, minute, at, a
 def test_the_readers_are_shared_with_weather():
     assert weather._num is outside.num and weather._text is outside.text and weather._obj is outside.obj
     assert outside.clean("a\u202eb  c\x00", 3) == "ab"
+    assert outside.num(10 ** 400) is None and outside.num(-(10 ** 400)) is None
 
 
 # ---------- how the door itself connects (moved from test_weather.py) ----------
