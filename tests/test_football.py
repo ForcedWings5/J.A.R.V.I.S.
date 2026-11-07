@@ -231,13 +231,6 @@ def test_the_season_has_started_once_a_game_is_played():
 
 # ---------- the cache, the earlier copy, and the league page ----------
 
-def serie_a(cl=False):
-    """The replies for Serie A's page on 2030-01-07; Roma has Champions League games if cl."""
-    roma = list(data.ROMA_SEASON) + ([data.CL_GAME] if cl else [])
-    return {"/competitions/SA/standings": data.SA_TABLE, "/competitions/SA/matches": data.SA_ROUNDS,
-            "/teams/100/matches": data.matches(*roma), "/competitions/CL/standings": data.CL_TABLE}
-
-
 @pytest.fixture
 def cache_clock(monkeypatch):
     """The cache's clock, moved by hand (not conftest's `clock`, which freezes the calendar)."""
@@ -261,7 +254,7 @@ def test_a_general_page_costs_two_requests(monkeypatch, frozen):
 
 @pytest.mark.parametrize("cl, requests", [(False, 3), (True, 4)])
 def test_a_themed_page_asks_for_the_champions_league_only_when_needed(monkeypatch, frozen, cl, requests):
-    served = data.serve(monkeypatch, serie_a(cl))
+    served = data.serve(monkeypatch, data.serie_a_replies(cl))
     page = football.league_page("serie-a")
     assert len(served.calls) == requests and page["team"]["name"] == "Roma"
     assert (page["team"]["champions_league"] is not None) == cl
@@ -270,7 +263,7 @@ def test_a_themed_page_asks_for_the_champions_league_only_when_needed(monkeypatc
 
 
 def test_a_second_look_within_ten_minutes_costs_nothing(monkeypatch, frozen, cache_clock):
-    served = data.serve(monkeypatch, serie_a())
+    served = data.serve(monkeypatch, data.serie_a_replies())
     football.league_page("serie-a")
     cache_clock.t += 599
     football.league_page("serie-a")
@@ -293,11 +286,11 @@ def test_a_live_match_is_kept_two_minutes(monkeypatch, frozen, cache_clock):
 
 
 def test_an_earlier_copy_is_used_when_the_service_fails(monkeypatch, frozen, cache_clock):
-    data.serve(monkeypatch, serie_a())
+    data.serve(monkeypatch, data.serie_a_replies())
     good = football.league_page("serie-a")
     cache_clock.t += 3600
     monkeypatch.setattr(football, "_now", lambda: datetime(2030, 1, 7, 9, 0))
-    data.serve(monkeypatch, {k: TimeoutError() for k in serie_a()})
+    data.serve(monkeypatch, {k: TimeoutError() for k in data.serie_a_replies()})
     later = football.league_page("serie-a")
     assert later["earlier"] == "08:00" and later["table"] == good["table"]
     cache_clock.t += 21_600
@@ -306,11 +299,11 @@ def test_an_earlier_copy_is_used_when_the_service_fails(monkeypatch, frozen, cac
 
 
 def test_a_refused_key_never_falls_back_to_an_earlier_copy(monkeypatch, frozen):
-    data.serve(monkeypatch, serie_a())
+    data.serve(monkeypatch, data.serie_a_replies())
     football.league_page("serie-a")
     football._fresh.clear()             # only the earlier copy remains
     refused = urllib.error.HTTPError(STANDINGS, 403, "x", {}, None)
-    data.serve(monkeypatch, {k: refused for k in serie_a()})
+    data.serve(monkeypatch, {k: refused for k in data.serie_a_replies()})
     with pytest.raises(football.FootballError, match="refused"):
         football.league_page("serie-a")
 

@@ -30,6 +30,7 @@ import jcal  # noqa: E402
 import notes  # noqa: E402
 import speech  # noqa: E402
 import tasks  # noqa: E402
+import football  # noqa: E402
 import weather  # noqa: E402
 import workday  # noqa: E402
 
@@ -160,6 +161,11 @@ class HomePlace(BaseModel):
                    Field(ge=-180, le=180, allow_inf_nan=False)]
 
 
+class LeagueRequest(BaseModel):
+    """One of the five leagues, by its fixed name (config.FOOTBALL_LEAGUES)."""
+    league: Literal[tuple(config.FOOTBALL_LEAGUES)]
+
+
 @app.get("/")
 def home():
     return FileResponse(config.STATIC_DIR / "index.html")
@@ -275,6 +281,19 @@ def weather_home(req: HomePlace):
     payload = _weather(lambda: weather.open_home(req.name, req.lat, req.lon))
     assistant.add_reply(payload["spoken"])
     return payload
+
+
+# Football (docs/specs/2026-11-07-sports-space.md). POST although it only reads, so the
+# Origin check and the text/plain refusal cover every request that goes online.
+FOOTBALL_STATUS = {"no_key": 503, "refused": 502, "busy": 429, "unreachable": 502}
+
+
+@app.post("/sports/league")
+def sports_league(req: LeagueRequest):
+    try:
+        return football.league_page(req.league)
+    except football.FootballError as e:
+        raise HTTPException(status_code=FOOTBALL_STATUS[e.kind], detail=str(e)) from None
 
 
 def _ollama_ok() -> bool:

@@ -9,12 +9,15 @@ import re
 from datetime import datetime
 import sys
 import types
+import typing
 
 import pytest
 from fastapi.testclient import TestClient
 
 import brain
 import config
+import football
+import football_data as fdata
 import jcal
 import notes
 import server
@@ -630,3 +633,63 @@ def test_chat_streams_places(client, model, monkeypatch):
     places = next(e for e in events if e["type"] == "places")
     assert [m["region"] for m in places["matches"]] == ["Île-de-France", "Texas"]
     assert all(len(m["id"]) == 8 for m in places["matches"])
+
+
+# ---------- the football endpoint (docs/specs/2026-11-07-sports-space.md) ----------
+
+@pytest.fixture
+def football_ready(monkeypatch):
+    fdata.freeze(monkeypatch)
+
+
+def test_the_league_endpoint_returns_the_page(client, monkeypatch, football_ready):
+    fdata.serve(monkeypatch, fdata.serie_a_replies())
+    r = client.post("/sports/league", json={"league": "serie-a"})
+    assert r.status_code == 200 and r.json()["team"]["name"] == "Roma"
+
+
+def test_the_league_names_match_the_settings():
+    names = typing.get_args(server.LeagueRequest.model_fields["league"].annotation)
+    assert set(names) == set(config.FOOTBALL_LEAGUES)
+
+
+@pytest.mark.parametrize("league", ["eredivisie", "", "SERIE-A", None, 3])
+def test_an_unknown_league_is_422(client, league):
+    assert client.post("/sports/league", json={"league": league}).status_code == 422
+
+
+@pytest.mark.parametrize("failure, status, detail", [
+    (None, 503, "Football needs a free key from football-data.org: see README"),
+    (403, 502, "The football data key was refused. Check it in .env."),
+    (429, 429, "Too many requests just now. Try again in a minute."),
+    (TimeoutError(), 502, "Couldn't reach the football data.")])
+def test_each_failure_has_its_status(client, monkeypatch, football_ready, failure, status, detail):
+    if failure is None:
+        monkeypatch.delenv("FOOTBALL_DATA_KEY")
+        fdata.serve(monkeypatch, {})
+    else:
+        answer = (urllib.error.HTTPError("x", failure, "x", {}, None)
+                  if isinstance(failure, int) else failure)
+        fdata.serve(monkeypatch, {k: answer for k in fdata.serie_a_replies()})
+    r = client.post("/sports/league", json={"league": "serie-a"})
+    assert (r.status_code, r.json()["detail"]) == (status, detail)
+
+
+def test_the_key_appears_only_in_the_header(client, monkeypatch, caplog, football_ready):
+    served = fdata.serve(monkeypatch, fdata.serie_a_replies())
+    with caplog.at_level(logging.DEBUG):
+        ok = client.post("/sports/league", json={"league": "serie-a"}).text
+        football.forget_everything()
+        refused = urllib.error.HTTPError("x", 403, "x", {}, None)
+        fdata.serve(monkeypatch, {k: refused for k in fdata.serie_a_replies()})
+        refused_text = client.post("/sports/league", json={"league": "serie-a"}).text
+    assert served.calls and all(h == {"X-Auth-Token": fdata.KEY} for _, h in served.calls)
+    for text in (ok, refused_text, caplog.text):
+        assert fdata.KEY not in text
+
+
+def test_the_league_endpoint_refuses_other_websites_and_plain_text(client):
+    r = client.post("/sports/league", json={"league": "serie-a"}, headers={"Origin": "http://evil.example"})
+    assert r.status_code == 403
+    r = client.post("/sports/league", content='{"league": "serie-a"}', headers={"Content-Type": "text/plain"})
+    assert r.status_code == 422

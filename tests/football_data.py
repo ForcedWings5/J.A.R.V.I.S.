@@ -122,3 +122,10 @@ BAYERN = team(5, "FC Bayern München", "Bayern")
 CL_GAME = match(401, "2030-01-21T20:00:00Z", "TIMED", ROMA, BAYERN, None, 7,
                 code="CL", name="UEFA Champions League")
 CL_TABLE = standings(row(1, BAYERN, 6, 5, 1, 0, 10, 16), row(9, ROMA, 6, 3, 1, 2, 2, 10))
+
+
+def serie_a_replies(cl=False):
+    """The replies for Serie A's page on 2030-01-07; Roma has Champions League games if cl."""
+    roma = list(ROMA_SEASON) + ([CL_GAME] if cl else [])
+    return {"/competitions/SA/standings": SA_TABLE, "/competitions/SA/matches": SA_ROUNDS,
+            "/teams/100/matches": matches(*roma), "/competitions/CL/standings": CL_TABLE}
