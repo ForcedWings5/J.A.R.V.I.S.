@@ -84,6 +84,16 @@ in Paris?" opens Weather and spins the globe there for you to confirm; then ask 
 there tomorrow?" and he answers from the forecast for the place you confirmed. He gives no
 weather before you confirm a place (CHANGELOG sections 56 to 58).
 
+**Sports** (key 4) opens on a hub of sports. Football is the one built so far; the others say
+"coming soon". Football opens a globe of Europe: click a country's pin (or a league in the list
+beside it) for that league's page: the table, the latest results and what is coming. Serie A
+follows Roma and the Premier League follows Newcastle, each in its club's colours, with the
+next match and a countdown, form, fixtures, and the Champions League table when they are in it.
+The trail at the top, the Back button or Esc go up a level, and the address
+(`#sports/serie-a`) keeps your place on a reload. The data comes from football-data.org's free
+plan, which needs a free key (below); free scores arrive a little late (CHANGELOG sections 59
+to 61).
+
 Clicking a panel opens it with a short "access" animation; click anywhere or press
 Escape to skip it. After 3 minutes without the mouse or keyboard the panels dim and the
 orb takes the stage; move the mouse to bring them back. The REDUCE MOTION switch in the

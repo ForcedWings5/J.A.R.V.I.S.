@@ -1306,6 +1306,44 @@ JARVIS can now fetch football from football-data.org. `POST /sports/league` retu
     - `outside.clean`'s argument has the same name as the module's `text()`;
     - the key-leak test covers 403 but not 429 or a timeout, which take the same path.
 
+## 61. Sports, stage 3: the page
+
+Sports is now space 4 on the dashboard. It uses plain fades; the floating objects and the kick come in stage 4, and asking JARVIS about football in stage 5.
+
+- **The hub:** five sports in glass circles: football, NBA, NFL, MLB and the F1 tyre. Football opens; the others say "NBA: coming soon" (and so on) for a moment.
+- **The league picker:** a second globe (Weather's code), framed on Europe, with a pin on each of the five countries ("Italy · Serie A") and the same leagues in a list beside it. The coastlines are now fetched once and shared by both globes.
+- **The league page** (`POST /sports/league` from stage 2):
+  - every league: the table, the latest round's results and the next round;
+  - **Serie A** in Roma's dark red and gold, and the **Premier League** in Newcastle's black, white and silver, adding the team's position and points, the next match with a countdown ("Today 20:45", "in 3 days", "Live" with "Free scores arrive late"), form (W, D or L, with the score on hover), fixtures, the Champions League table when the team is in it, and the cup note;
+  - the credit line, and "Updated 3 min ago", or "From 14:05" for an earlier copy, with the day when it is not today.
+  - Everything is drawn with `textContent`, so nothing from a reply can become part of the page's code.
+- **Getting around:**
+  - the trail ("Sports / Football / Serie A"), Back and Esc each go up a level;
+  - the address follows the level (`#sports`, `#sports/football`, `#sports/serie-a`), survives a reload and works with the browser's Back;
+  - a mistyped address opens the hub, never Home;
+  - Esc in the command box only leaves the box, as everywhere.
+- **The notes from stage 2's review:**
+  - the page asks for one league at a time, so quick clicks never send two requests together, and the last league asked for is the one shown;
+  - after 4 seconds the page says "Still waiting for the football data…";
+  - an earlier copy shows its day when it is not today.
+- **Failures:** the server's message, with Try again, except for a missing key, where trying again cannot help.
+- **JARVIS knows the space:** `open_space` now lists sports ("sports has football: league tables and results, with Roma and Newcastle followed"), and `/chat` accepts it. That changed the prompt, so the full eval ran before and after:
+  - **Before:** 228/231, prompt `0a1a37f7968e` (section 58; the hash was checked unchanged).
+  - **After:** 237/240, prompt `825d45cfb641`. The two new cases ("Open sports." switches; "I played football with friends yesterday." does not) passed every run.
+  - **Misses, one run in three each:** `delete_repeating_no_date_no_false_card` (the usual one), `space_switch_and_answer` (then 5 of 5), and `ask_until_month`. That one passed 7 of 10 more runs, and 7 of 10 with the old prompt too, so it was already flaky and is not this change. It sometimes adds the event "until 31 December" instead of asking which day.
+- **Tests:** 814, up from 806. Python pins what it can: the page's element ids, the script order, the five sports, and the league list matching `config.py`. There is no JavaScript test runner (the owner's choice), so the rest was checked in a demo.
+- **Checked in a demo** (made-up data, then live with the owner's key, about 7 requests):
+  - every wording rule;
+  - both themes, and La Liga's plain page with empty rounds;
+  - the words "undefined", "null" and "NaN" nowhere on the page;
+  - one request at a time (never two open; the page ended on the last league clicked);
+  - leaving mid-load (the late reply drew nothing) and the 30-second timer stopping on leaving;
+  - busy, a slow outage, no key, and a reload on a league;
+  - no console errors and no policy violations.
+  - **Live:** Roma 2nd on 27 points, next Parma v Roma on Saturday 21 November; Newcastle 11th on 12 points, next Newcastle v Arsenal.
+- **Fixed in the demo:** the page's head shrank to a thin strip, and Roma's red title was hard to read on its red band (now gold).
+- **Not checked:** Safari, the look in motion (stage 4), and JARVIS's football tools (stage 5).
+
 ---
 
 ## Status
@@ -1337,6 +1375,7 @@ JARVIS can now fetch football from football-data.org. `POST /sports/league` retu
 | Weather, stage 4: asking JARVIS (section 58) | Done: evals 228/231 (prompt `0a1a37f7968e`), plus a later-in-the-day case 3/3; checked in a demo and live; not yet in Safari or by voice |
 | Sports, stage 1: one shared door (section 59) | Done: 728 tests; Weather checked live through the new door; nothing fetched from football-data.org yet |
 | Sports, stage 2: the football server (section 60) | Done: 806 tests; checked live with the owner's key (team ids, reply shapes, Serie A and Premier League pages); no page or tools yet |
+| Sports, stage 3: the page (section 61) | Done: evals 237/240 (prompt `825d45cfb641`); checked in a demo and live; not yet in Safari or seen in motion; no football tools yet |
 | Other websites (Origin check) | Done: attack shown and then blocked in the real browser, dashboard unaffected, 406 tests (section 36) |
 | Voice input, voice output, voice mode switch | Tested and working |
 | Calendar views (compact agenda, year/month/week/day) | Layout confirmed good; all four views checked in a demo, on Home and in Work (section 51) |

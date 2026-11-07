@@ -46,7 +46,7 @@ A threat actor is anyone or anything that could cause harm, including accidents.
 ## 3. Ways in (attack surface)
 
 - **The HTTP endpoints**: `/chat`, `/confirm`, `/calendar`, `/tasks`, `/transcribe`, `/speak`,
-  `/weather/places`, `/weather/confirm`, `/weather/home`.
+  `/weather/places`, `/weather/confirm`, `/weather/home`, `/sports/league`.
   Reachable only from this Mac, but including from other browser tabs.
 - **Files on disk**: `jarvis.db`, `backups/`, `logs/`. Readable by anything running as me.
 - **The model**: anything it reads can try to steer it.
