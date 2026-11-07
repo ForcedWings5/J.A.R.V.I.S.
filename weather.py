@@ -13,7 +13,6 @@ import math
 import re
 import secrets
 import threading
-import unicodedata
 from collections import OrderedDict
 from datetime import date
 from time import monotonic   # its own name, so tests can move the cache's clock
@@ -72,18 +71,8 @@ def hpa_to_inhg(hpa: float | None) -> float | None:
 
 
 def clean(text: str | None, limit: int = config.WEATHER_NAME_MAX) -> str:
-    """Outside text, made safe to show and to give the model: no control or invisible
-    formatting characters (such as one that reverses the text), one space between words,
-    and no longer than `limit`."""
-    if text is None:
-        return ""
-    kept = []
-    for ch in str(text):
-        if ch.isspace():
-            kept.append(" ")
-        elif not unicodedata.category(ch).startswith("C"):
-            kept.append(ch)
-    return " ".join("".join(kept).split())[:limit].strip()
+    """Outside text made safe to show and to give the model (outside.clean), at most `limit`."""
+    return outside.clean(text, limit)
 
 
 # WMO weather codes, as Open-Meteo sends them: words, and the icon the page draws.
@@ -249,23 +238,12 @@ def _round(x: float) -> float:
     return round(float(x), config.WEATHER_COORD_DECIMALS)
 
 
-# A reply is outside data: it is read only through these, so a value of the wrong type (a
-# word where a number belongs, a list where a table belongs) becomes "missing", never a
-# crash, and never text that reaches the page or the conversation (final review).
-
-def _num(x) -> int | float | None:
-    """x if it is a real, finite number, else None (True counts as a bool, not a 1)."""
-    if isinstance(x, bool) or not isinstance(x, (int, float)):
-        return None
-    return x if math.isfinite(x) else None
-
-
-def _text(x) -> str:
-    return x if isinstance(x, str) else ""
-
-
-def _obj(x) -> dict:
-    return x if isinstance(x, dict) else {}
+# A reply is outside data: it is read only through outside.num, text and obj (kept here under
+# their old names), so a value of the wrong type becomes "missing", never a crash, and never
+# text that reaches the page or the conversation (final review).
+_num = outside.num
+_text = outside.text
+_obj = outside.obj
 
 
 def _at(values, i):

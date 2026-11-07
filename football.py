@@ -16,7 +16,7 @@ def _from_env_file() -> str | None:
     """The last FOOTBALL_DATA_KEY line of .env, written in any of the usual ways
     (`NAME=value`, spaces round `=`, quotes, `export NAME=value`)."""
     try:
-        text = config.ENV_FILE.read_text(encoding="utf-8")
+        text = config.ENV_FILE.read_text(encoding="utf-8-sig")   # some editors add a mark at the start
     except (OSError, UnicodeDecodeError):     # no file, a folder, unreadable, not UTF-8
         return None
     found = None
@@ -24,7 +24,7 @@ def _from_env_file() -> str | None:
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        line = line.removeprefix("export ").lstrip()
+        line = re.sub(r"^export\s+", "", line)
         name, sep, value = line.partition("=")
         if sep and name.strip() == _KEY_NAME:
             value = value.strip()

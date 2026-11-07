@@ -18,6 +18,7 @@ import truststore
 
 import config
 import outside
+import weather
 
 FOOT = config.FOOTBALL_API + "/competitions/SA/standings"
 KEY = "testkey0123456789"
@@ -176,6 +177,34 @@ def test_the_guard_holds_with_requests_at_the_same_time(monkeypatch, minute):
     for t in threads:
         t.join()
     assert results.count("ok") == 9 and results.count("busy") == 11 and len(seen) == 9
+
+
+def test_headers_go_only_to_football_data(monkeypatch):
+    seen = fake_fetch(monkeypatch, b"{}")
+    with pytest.raises(ValueError):
+        outside.get(config.WEATHER_FORECAST_URL, {"latitude": 1}, headers={"X-Auth-Token": KEY})
+    assert seen == []
+
+
+@pytest.mark.parametrize("at, admitted", [(59.99, False), (60.0, True)])
+def test_the_guards_minute_ends_exactly_at_60_seconds(monkeypatch, minute, at, admitted):
+    seen = fake_fetch(monkeypatch, b"{}")
+    for _ in range(9):
+        outside.get(FOOT, {})
+    minute.t += at
+    if admitted:
+        outside.get(FOOT, {})
+    else:
+        with pytest.raises(outside.OutsideError, match="busy"):
+            outside.get(FOOT, {})
+    assert len(seen) == 9 + admitted
+
+
+# ---------- reading replies (shared with Weather) ----------
+
+def test_the_readers_are_shared_with_weather():
+    assert weather._num is outside.num and weather._text is outside.text and weather._obj is outside.obj
+    assert outside.clean("a\u202eb  c\x00", 3) == "ab"
 
 
 # ---------- how the door itself connects (moved from test_weather.py) ----------

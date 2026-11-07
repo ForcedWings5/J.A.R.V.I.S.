@@ -3,6 +3,7 @@
 The evals themselves need Ollama and only run on the Mac (python -m evals).
 """
 import inspect
+from pathlib import Path
 
 import pytest
 
@@ -241,3 +242,10 @@ def test_the_last_full_run_of_the_same_model_is_found(tmp_path):
     found = speed.previous_run(tmp_path, "gemma4:26b")
     assert found["_file"] == "2030-01-02_090000_m.json"
     assert speed.previous_run(tmp_path, "mistral:latest") is None
+
+
+def test_the_eval_runner_never_reads_the_real_env_file():
+    source = (Path(__file__).parent.parent / "evals" / "__main__.py").read_text()
+    first_import = source.index("\nimport argparse")
+    assert source.index('os.environ["JARVIS_ENV"] = os.devnull') < first_import
+    assert source.index('os.environ.pop("FOOTBALL_DATA_KEY", None)') < first_import

@@ -7,9 +7,11 @@ service (docs/specs/2026-11-07-sports-space.md), so there is still exactly one p
 """
 import json
 import logging
+import math
 import ssl
 import threading
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -32,6 +34,8 @@ ADDRESSES = frozenset((config.WEATHER_GEOCODE_URL, config.WEATHER_FORECAST_URL,
 _LIMITS = {"api.football-data.org": config.FOOTBALL_REQUESTS_PER_MINUTE}
 _sent: dict[str, deque] = {}            # host -> when its recent requests were sent
 _guard_lock = threading.Lock()          # the server answers requests in threads
+
+_HEADER_HOSTS = {"api.football-data.org"}
 
 # HTTP statuses that mean "your key was not accepted", and "too many requests"
 _REFUSED = {400, 401, 403}
@@ -114,6 +118,10 @@ def get(address: str, params: dict, headers: dict[str, str] | None = None) -> di
         raise ValueError("not one of JARVIS's fixed addresses")
     full = address + "?" + urllib.parse.urlencode(params) if params else address
     host = urllib.parse.urlsplit(address).hostname
+    # Headers (the football key) go only to football-data.org, so a mistake in a caller can
+    # never send the key to another service
+    if headers and host not in _HEADER_HOSTS:
+        raise ValueError("headers go only to football-data.org")
     if not _admit(host):
         log.info("outside request: %s, refused by the rate guard", host)
         raise OutsideError("busy")
@@ -137,3 +145,39 @@ def get(address: str, params: dict, headers: dict[str, str] | None = None) -> di
         # The host and timing only: the address can hold a place, a header a key
         log.info("outside request: %s, %s in %d ms", host, outcome,
                  (time.monotonic() - start) * 1000)
+
+
+# ---------- reading replies (moved from weather.py; Football uses them too) ----------
+
+# A reply is outside data: it is read only through these, so a value of the wrong type (a
+# word where a number belongs, a list where a table belongs) becomes "missing", never a
+# crash, and never text that reaches the page or the conversation (final review).
+
+def num(x) -> int | float | None:
+    """x if it is a real, finite number, else None (True counts as a bool, not a 1)."""
+    if isinstance(x, bool) or not isinstance(x, (int, float)):
+        return None
+    return x if math.isfinite(x) else None
+
+
+def text(x) -> str:
+    return x if isinstance(x, str) else ""
+
+
+def obj(x) -> dict:
+    return x if isinstance(x, dict) else {}
+
+
+def clean(text: str | None, limit: int) -> str:
+    """Outside text, made safe to show and to give the model: no control or invisible
+    formatting characters (such as one that reverses the text), one space between words,
+    and no longer than `limit`."""
+    if text is None:
+        return ""
+    kept = []
+    for ch in str(text):
+        if ch.isspace():
+            kept.append(" ")
+        elif not unicodedata.category(ch).startswith("C"):
+            kept.append(ch)
+    return " ".join("".join(kept).split())[:limit].strip()

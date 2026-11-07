@@ -59,3 +59,12 @@ def test_an_unreadable_env_file_counts_as_missing(tmp_path, monkeypatch):
     bad.write_bytes(b"FOOTBALL_DATA_KEY=\xff\xfe0123456789\n")
     monkeypatch.setattr(config, "ENV_FILE", bad)
     assert football._key() is None
+
+
+@pytest.mark.parametrize("raw", [("\ufeff" + f"FOOTBALL_DATA_KEY={KEY}").encode(),
+                                 f"export\tFOOTBALL_DATA_KEY={KEY}".encode()])
+def test_a_byte_order_mark_and_a_tab_after_export_work(tmp_path, monkeypatch, raw):
+    path = tmp_path / ".env"
+    path.write_bytes(raw)
+    monkeypatch.setattr(config, "ENV_FILE", path)
+    assert football._key() == KEY

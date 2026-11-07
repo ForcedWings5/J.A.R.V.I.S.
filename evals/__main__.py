@@ -13,6 +13,9 @@ import os
 
 # Must happen BEFORE brain and jcal are imported, because they open the database on import
 os.environ["JARVIS_DB"] = ":memory:"
+# The same for secrets: an empty file instead of .env, and no key from the shell (as conftest.py)
+os.environ["JARVIS_ENV"] = os.devnull
+os.environ.pop("FOOTBALL_DATA_KEY", None)
 
 import argparse  # noqa: E402
 import contextlib  # noqa: E402
