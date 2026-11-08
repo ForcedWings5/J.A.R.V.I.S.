@@ -31,23 +31,10 @@ body.reduce .sp-hub, body.reduce .sp-picker, body.reduce .sp-league { animation:
   border:1px solid var(--line); background-color:var(--glass); -webkit-backdrop-filter:var(--blur);
   backdrop-filter:var(--blur); box-shadow:var(--rim); font:inherit; }
 .sp-object:hover, .sp-object:focus-visible { border-color:var(--accent); box-shadow:var(--rim), 0 0 18px var(--glow); }
-.sp-object svg { width:78px; height:78px; }
-.sp-object:not([data-sport="football"]) svg { opacity:.7; }
+.sp-canvas { width:96px; height:96px; display:block; }      /* drawn by sports-objects.js */
+.sp-object:not([data-sport="football"]) .sp-canvas { opacity:.75; }
 .sp-name { font-size:13px; letter-spacing:.5px; }
 .sp-note { text-align:center; min-height:20px; }
-
-/* The objects' colours: drawn with classes, never inline styles (the security policy) */
-.sp-white { fill:#f2f6f8; }
-.sp-ink { fill:#10181d; }
-.sp-seam { fill:none; stroke:#10181d; stroke-width:2; }
-.sp-orange { fill:#e07a1f; }
-.sp-seam-dark { fill:none; stroke:#3a1a05; stroke-width:2; }
-.sp-brown { fill:#7a3e1d; }
-.sp-lace { fill:none; stroke:#fff; stroke-width:2.5; stroke-linecap:round; }
-.sp-stitch { fill:none; stroke:#c0392b; stroke-width:2.5; stroke-dasharray:3 3; }
-.sp-tyre { fill:#141414; }
-.sp-band { fill:none; stroke:#e10600; stroke-width:3; }
-.sp-rim { fill:#6d7378; }
 
 /* The league picker: the globe framed on Europe, a pin per country, and a list beside it */
 .sp-picker { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0, 1fr) 240px; gap:16px; }

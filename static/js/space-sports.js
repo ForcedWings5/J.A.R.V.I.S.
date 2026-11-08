@@ -25,6 +25,30 @@ let sportsNoteTimer = null;
 
 function sportsLevel() { return sportsSection.dataset.level; }
 
+// The hub's objects turn slowly while the hub is shown (sports-objects.js draws them); with
+// Reduce motion they are drawn once, still. Each starts at its own angle.
+const sportsCanvases = [...sportsSection.querySelectorAll('.sp-object .sp-canvas')];
+let sportsSpin = null;
+function sportsDrawObjects(seconds) {
+  sportsCanvases.forEach((c, i) => drawSportObject(c, c.parentElement.dataset.sport, seconds + i * 1.3));
+}
+function sportsStartObjects() {
+  sportsStopObjects();
+  sportsDrawObjects(0.6);
+  if (globeCalm()) return;
+  const start = performance.now();
+  const step = now => {
+    if (globeCalm()) { sportsSpin = null; return; }
+    sportsDrawObjects(0.6 + (now - start) / 1000);
+    sportsSpin = requestAnimationFrame(step);
+  };
+  sportsSpin = requestAnimationFrame(step);
+}
+function sportsStopObjects() {
+  if (sportsSpin) cancelAnimationFrame(sportsSpin);
+  sportsSpin = null;
+}
+
 function sportsLeagueInfo(slug) {
   return SPORTS_LEAGUES.find(l => l.slug === slug) || null;
 }
@@ -52,9 +76,14 @@ function sportsGo(level, league = null, { fromAddress = false } = {}) {
   const before = sportsLevel();
   sportsSection.dataset.level = level;
   sportsLeague = level === 'league' ? league : null;
-  if (level === 'hub') sportsFootball.leave();
-  else if (level === 'football') { if (before === 'league') sportsFootball.leaveLeague(); sportsFootball.enterPicker(); }
-  else sportsFootball.openLeague(league);
+  if (level === 'hub') {
+    sportsFootball.leave();
+    sportsStartObjects();
+  } else {
+    sportsStopObjects();
+    if (level === 'football') { if (before === 'league') sportsFootball.leaveLeague(); sportsFootball.enterPicker(); }
+    else sportsFootball.openLeague(league);
+  }
   sportsDrawTrail();
   // A click adds a history entry. Following an address only tidies a Sports one in place
   // ('#SPORTS/x' -> '#sports'); coming from another space, spaces.js adds the entry itself.
@@ -114,7 +143,7 @@ registerSpace({
       ? sportsFromAddress(location.hash) : { level: 'hub', league: null };
     sportsGo(where.level, where.league, { fromAddress: true });
   },
-  leave() { sportsFootball.leave(); },
+  leave() { sportsStopObjects(); sportsFootball.leave(); },
   ready: () => sportsLevel() !== 'football' || sportsFootball.drawn(),
   readout: () => (sportsLevel() === 'league' ? sportsLeagueInfo(sportsLeague).name.toUpperCase()
     : sportsLevel() === 'football' ? 'PICK A LEAGUE' : 'SPORTS ONLINE'),

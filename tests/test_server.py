@@ -715,7 +715,7 @@ def test_the_sports_section_and_its_files_are_on_the_page(client):
     assert 'id="space-sports"' in page and 'data-level="hub"' in page
     assert "/static/css/space-sports.css" in page
     order = [page.index(f"/static/js/{name}.js") for name in
-             ("globe", "space-weather", "space-sports", "sports-football", "motion")]
+             ("globe", "space-weather", "sports-objects", "space-sports", "sports-football", "motion")]
     assert order == sorted(order)
 
 
@@ -725,6 +725,16 @@ def test_every_element_the_sports_scripts_look_up_exists():
         # By getElementById, or by sports-football.js's short helper fbEl (final review)
         for element_id in re.findall(r"(?:getElementById|fbEl)\('([^']+)'\)", (ROOT / path).read_text()):
             assert f'id="{element_id}"' in page, (path, element_id)
+
+
+def test_each_hub_object_is_drawn_on_a_canvas():
+    """The 3D objects (sports-objects.js) replaced the flat drawings: one canvas per sport,
+    and no SVG left in the hub."""
+    page = (ROOT / "static" / "index.html").read_text()
+    hub = page[page.index('id="sp-hub"'):page.index('id="sp-note"')]
+    assert hub.count("<canvas") == 5 and "<svg" not in hub
+    names = re.findall(r"^  (?:'([a-z-]+)'|([a-z0-9]+)): \{ shape:", (ROOT / "static" / "js" / "sports-objects.js").read_text(), re.M)
+    assert [a or b for a, b in names] == ["football", "basketball", "american-football", "baseball", "f1"]
 
 
 def test_the_hub_has_the_five_sports():

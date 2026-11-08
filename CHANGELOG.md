@@ -1310,7 +1310,12 @@ JARVIS can now fetch football from football-data.org. `POST /sports/league` retu
 
 Sports is now space 4 on the dashboard. It uses plain fades; the floating objects and the kick come in stage 4, and asking JARVIS about football in stage 5.
 
-- **The hub:** five sports in glass circles: football, NBA, NFL, MLB and the F1 tyre. Football opens; the others say "NBA: coming soon" (and so on) for a moment.
+- **The hub:** five sports in glass circles. Football opens; the others say "NBA: coming soon" (and so on) for a moment.
+  - **The objects are 3D wireframes**, drawn on canvases the way the globe is (`sports-objects.js`) and turning slowly. With Reduce motion they are still. The owner chose them over the first flat drawings, which looked childish next to the rest of the page, and over a downloaded icon set, after a throwaway test.
+  - **The football** has its real pattern: 12 pentagons and 20 hexagons.
+  - **The basketball** has one winding seam and two straight seams at right angles, after Paul Bourke's "Geometry of sports balls". The first try, with two straight seams and two rings, looked like a globe.
+  - **The NFL ball** has its seams, end stripes and laces, and **the baseball** its winding seam with stitches.
+  - **F1 is a low-poly car**, the owner's choice over a tyre, since the car fits the later F1 stage.
 - **The league picker:** a second globe (Weather's code), framed on Europe, with a pin on each of the five countries ("Italy · Serie A") and the same leagues in a list beside it. The coastlines are now fetched once and shared by both globes.
 - **The league page** (`POST /sports/league` from stage 2):
   - every league: the table, the latest round's results and the next round;
@@ -1331,7 +1336,7 @@ Sports is now space 4 on the dashboard. It uses plain fades; the floating object
   - **Before:** 228/231, prompt `0a1a37f7968e` (section 58; the hash was checked unchanged).
   - **After:** 237/240, prompt `825d45cfb641`. The two new cases ("Open sports." switches; "I played football with friends yesterday." does not) passed every run.
   - **Misses, one run in three each:** `delete_repeating_no_date_no_false_card` (the usual one), `space_switch_and_answer` (then 5 of 5), and `ask_until_month`. That one passed 7 of 10 more runs, and 7 of 10 with the old prompt too, so it was already flaky and is not this change. It sometimes adds the event "until 31 December" instead of asking which day.
-- **Tests:** 814, up from 806. Python pins what it can: the page's element ids, the script order, the five sports, and the league list matching `config.py`. There is no JavaScript test runner (the owner's choice), so the rest was checked in a demo.
+- **Tests:** 815, up from 806. Python pins what it can: the page's element ids, the script order, the five sports, and the league list matching `config.py`. There is no JavaScript test runner (the owner's choice), so the rest was checked in a demo.
 - **Checked in a demo** (made-up data, then live with the owner's key, about 7 requests):
   - every wording rule;
   - both themes, and La Liga's plain page with empty rounds;
@@ -1389,7 +1394,7 @@ Sports is now space 4 on the dashboard. It uses plain fades; the floating object
 | Weather, stage 4: asking JARVIS (section 58) | Done: evals 228/231 (prompt `0a1a37f7968e`), plus a later-in-the-day case 3/3; checked in a demo and live; not yet in Safari or by voice |
 | Sports, stage 1: one shared door (section 59) | Done: 728 tests; Weather checked live through the new door; nothing fetched from football-data.org yet |
 | Sports, stage 2: the football server (section 60) | Done: 806 tests; checked live with the owner's key (team ids, reply shapes, Serie A and Premier League pages); no page or tools yet |
-| Sports, stage 3: the page (section 61) | Done: evals 237/240 (prompt `825d45cfb641`); checked in a demo and live; not yet in Safari or seen in motion; no football tools yet |
+| Sports, stage 3: the page (section 61) | Done: 815 tests; evals 237/240 (prompt `825d45cfb641`); checked in a demo and live; not yet in Safari or seen in motion; no football tools yet |
 | Other websites (Origin check) | Done: attack shown and then blocked in the real browser, dashboard unaffected, 406 tests (section 36) |
 | Voice input, voice output, voice mode switch | Tested and working |
 | Calendar views (compact agenda, year/month/week/day) | Layout confirmed good; all four views checked in a demo, on Home and in Work (section 51) |
