@@ -26,7 +26,7 @@ for (const league of SPORTS_LEAGUES) {
   const pin = document.createElement('button');
   pin.className = 'sp-pin';
   pin.textContent = league.country + ' · ' + league.name;
-  pin.addEventListener('click', () => sportsGo('league', league.slug));
+  pin.addEventListener('click', () => sportsKick(league.slug));
   sportsPins.append(pin);
   sportsPinButtons.push({ pin, league });
 
@@ -37,7 +37,7 @@ for (const league of SPORTS_LEAGUES) {
   where.className = 'muted';
   where.textContent = league.country;
   item.append(where);
-  item.addEventListener('click', () => sportsGo('league', league.slug));
+  item.addEventListener('click', () => sportsKick(league.slug));
   sportsLeagueList.append(item);
 }
 
@@ -122,6 +122,7 @@ const fb = {
   results: fbEl('sp-results'), resultsTitle: fbEl('sp-results-title'),
   upcoming: fbEl('sp-upcoming'), upcomingTitle: fbEl('sp-upcoming-title'),
   fixtures: fbEl('sp-fixtures'), cl: fbEl('sp-cl'), cup: fbEl('sp-cup'), updated: fbEl('sp-updated'),
+  kick: fbEl('sp-kick'),
   teamPanels: [...document.querySelectorAll('#sp-league .sp-team-only')],
   clPanel: fbEl('sp-cl-panel'),
 };
@@ -188,7 +189,9 @@ async function footballAsk() {
     reply = { ok: false, status: 0, data: {} };
   }
   footballAsking = null;
-  if (footballWanted === slug && currentSpace === 'sports' && sportsLevel() === 'league') {
+  // Drawn even while the kick still plays (the page is hidden until it lands), so a quick reply
+  // is not lost; leaving clears footballWanted, so a reply after leaving draws nothing
+  if (footballWanted === slug && currentSpace === 'sports') {
     if (reply.ok) footballDraw(reply.data);
     else footballFailed(reply);
   }
@@ -308,10 +311,23 @@ const sportsFootball = {
   openLeague(slug) {
     sportsPickerOn = false;
     sportsGlobe.stop();
+    if (footballWanted === slug) return;     // the kick already asked for it
+    this.prepare(slug);
+  },
+  // Ask for a league's data: as the kick starts (spec), so it is usually ready on landing
+  prepare(slug) {
     this.leaveLeague();
     footballWanted = slug;
     footballLoading(slug);
     footballAsk();
+  },
+  // The kick, from the bottom left to the league's country on the globe
+  kick(slug) {
+    const league = sportsLeagueInfo(slug);
+    return playKick(fb.kick, () => {
+      const p = sportsGlobe.screenPoint(league.lat, league.lon);
+      return p.visible ? p : { x: fb.kick.clientWidth / 2, y: fb.kick.clientHeight / 2 };
+    });
   },
   // The page is left: no timers, and a late reply draws nothing
   leaveLeague() {

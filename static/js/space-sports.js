@@ -148,6 +148,16 @@ function sportsGrow(button) {
   return { done, skip: () => end(true), cancel: () => end(false) };
 }
 
+// The way into a league from the picker (stage 5's "show me Serie A" will use it too): the
+// silhouette kicks the ball onto the country, and the league's data is asked for as it starts.
+// From anywhere else, or with Reduce motion, the page simply opens.
+function sportsKick(slug) {
+  if (!sportsLeagueInfo(slug) || sportsAnim) return;
+  if (globeCalm() || sportsLevel() !== 'football') { sportsGo('league', slug); return; }
+  sportsFootball.prepare(slug);
+  sportsPlay(sportsFootball.kick(slug), () => sportsGo('league', slug));
+}
+
 function sportsLeagueInfo(slug) {
   return SPORTS_LEAGUES.find(l => l.slug === slug) || null;
 }
