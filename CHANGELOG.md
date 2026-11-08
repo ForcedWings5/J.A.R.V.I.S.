@@ -1368,6 +1368,42 @@ Sports is now space 4 on the dashboard. It uses plain fades; the floating object
     - section 58's "before" score covered 77 cases, not 78 (the same prompt, so still a fair comparison);
     - "#sports/" typed on the hub stays as typed.
 
+## 62. Sports, stage 4: the animations
+
+The Sports space now moves. Asking JARVIS about football comes in stage 5.
+
+- **The hub floats:** each object drifts and tilts on its own slow loop (6.5 to 9 seconds, out of step), and hovering grows one a little. CSS only.
+- **The football grows into the globe:** the other objects fade, a copy of the football flies to the globe's place, growing and still turning, and fades as the globe of Europe fades in. About 0.75 s.
+- **The kick:** clicking a country, on the globe or in the list, plays it (`sports-kick.js`):
+  - a silhouette runs in from the bottom left and kicks;
+  - the ball arcs to the country's pin, shrinking and spinning, with a trail and a floor shadow that fades as it rises;
+  - it bounces once with a ripple, and the league page fades in at 2.3 s.
+  - **Where it comes from:** the body model, its 12 key poses and their timing are the throwaway test's from 2026-11-07, unchanged (a test pins the poses and timing).
+  - **The ball** is the hub's own 3D football (`drawSportAt`, split out of `drawSportObject`), not the test's white ball, so the ball you clicked is the one kicked.
+- **The data comes with the kick:** the league's data is asked for as the kick starts and drawn into the hidden page, so it is usually ready on landing. Otherwise the page says "Loading…" as before. Still one request at a time.
+- **Skipping and leaving:**
+  - A click anywhere in the space, or Esc, skips the animation playing to its end; Esc then means "skip", and the next Esc goes up a level.
+  - A second click during an animation never starts another.
+  - Leaving the space, the browser's Back button or a new address cancels it, so nothing is drawn late. One animation plays at a time (`sportsAnim` in `space-sports.js`).
+- **Frames that stop** (a hidden window, a slow Mac): each animation has a safety timeout, as the globe and `motion.js` have, so the picker or the page still appears.
+- **Reduce motion:** no float, no flight, no kick; the levels simply switch. The spec said "a short fade", but `jarvis.css` turns every animation off under Reduce motion, in every space, and overriding that only here would break JARVIS's own rule.
+- **Addresses** (`#sports/serie-a` typed, a reload, the Back button) open the page directly, with no kick.
+- **Tests:** 819, up from 816. They check that the hub stops floating with Reduce motion, the script order, and that the kick keeps the test's 12 poses and timing.
+- **Checked in the page:** the motion passes through every key pose, the lowest foot stays on the floor, the limbs keep their lengths, and the ball rests, flies and lands where it should.
+- **Checked in a demo** (made-up data):
+  - the timing (2.32 s);
+  - the page filled on landing;
+  - skips by click, Esc and a second pin (one request);
+  - the Back button and leaving mid-kick and mid-flight, with nothing drawn later, even with a slow reply;
+  - busy, slow and failing replies after landing;
+  - a resize mid-kick (the ball still lands on the pin);
+  - Reduce motion, and a typed address;
+  - no console errors and no policy violations.
+- **Not checked:**
+  - **The motion at full frame rate.** The demo's browser pane was hidden during the kick's checks, so it drew no frames. That run did prove the safety timeout (the page came at 2.7 s); the timing checks then ran with a timer standing in for frames, and the look was judged from stills. The football's flight was seen at full frame rate.
+  - **Safari.**
+- **Noted:** pressing 1 during the football's flight lets the copy finish its half-second flight over Home's opening, because the space hears it is leaving only partway through that opening. Nothing is left at the end.
+
 ---
 
 ## Status
@@ -1400,6 +1436,7 @@ Sports is now space 4 on the dashboard. It uses plain fades; the floating object
 | Sports, stage 1: one shared door (section 59) | Done: 728 tests; Weather checked live through the new door; nothing fetched from football-data.org yet |
 | Sports, stage 2: the football server (section 60) | Done: 806 tests; checked live with the owner's key (team ids, reply shapes, Serie A and Premier League pages); no page or tools yet |
 | Sports, stage 3: the page (section 61) | Done: 816 tests; evals 237/240 (prompt `825d45cfb641`); checked in a demo and live; not yet in Safari or seen in motion; no football tools yet |
+| Sports, stage 4: the animations (section 62) | Done: 819 tests; checked in a demo (the kick's timing with a timer standing in for frames, its look from stills); not yet seen at full frame rate or in Safari; no prompt change |
 | Other websites (Origin check) | Done: attack shown and then blocked in the real browser, dashboard unaffected, 406 tests (section 36) |
 | Voice input, voice output, voice mode switch | Tested and working |
 | Calendar views (compact agenda, year/month/week/day) | Layout confirmed good; all four views checked in a demo, on Home and in Work (section 51) |
