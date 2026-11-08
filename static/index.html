@@ -146,6 +146,7 @@
     <div class="sp-globe-wrap">
       <canvas id="sp-globe" aria-label="A globe of Europe"></canvas>
       <div id="sp-pins" class="sp-pins"></div>
+      <canvas id="sp-player" class="sp-player" aria-hidden="true" hidden></canvas>
       <canvas id="sp-kick" class="sp-kick" aria-hidden="true" hidden></canvas>
     </div>
     <div class="panel sp-leagues"><div class="h"><span class="l">PICK A LEAGUE</span></div><div id="sp-league-list"></div></div>
@@ -187,5 +188,7 @@
 <script src="/static/js/space-sports.js"></script>
 <script src="/static/js/sports-football.js"></script>
 <script src="/static/js/motion.js"></script>
+<!-- the 3D player: an ES module, so it runs after every script above (CHANGELOG section 63) -->
+<script type="module" src="/static/js/sports-player.js"></script>
 </body>
 </html>

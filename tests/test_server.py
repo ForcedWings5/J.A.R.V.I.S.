@@ -709,7 +709,8 @@ def test_the_league_endpoint_refuses_other_websites_and_plain_text(client):
 
 # ---------- the Sports page (docs/specs/2026-11-07-sports-space.md, stage 3) ----------
 
-SPORTS_JS = ["static/js/space-sports.js", "static/js/sports-football.js", "static/js/sports-kick.js"]
+SPORTS_JS = ["static/js/space-sports.js", "static/js/sports-football.js", "static/js/sports-kick.js",
+             "static/js/sports-player.js"]
 
 
 def test_the_sports_section_and_its_files_are_on_the_page(client):
@@ -814,3 +815,18 @@ def test_the_vendored_scripts_import_only_our_own_copies():
     for name in ("GLTFLoader.js", "BufferGeometryUtils.js", "three.module.min.js"):
         for target in IMPORT_LINE.findall((VENDOR / name).read_text()):
             assert target.startswith("./") and (VENDOR / target[2:]).exists(), (name, target)
+
+
+def test_the_3d_player_loads_last_as_a_module_with_its_canvas():
+    page = (ROOT / "static" / "index.html").read_text()
+    assert '<script type="module" src="/static/js/sports-player.js"></script>' in page
+    assert page.index("/static/js/motion.js") < page.index("/static/js/sports-player.js")
+    assert page.index('id="sp-player"') < page.index('id="sp-kick"')
+    assert 'type="importmap"' not in page
+
+
+def test_the_3d_player_uses_only_our_files():
+    source = (ROOT / "static" / "js" / "sports-player.js").read_text()
+    assert IMPORT_LINE.findall(source) == ["./vendor/three.module.min.js", "./vendor/GLTFLoader.js"]
+    assert "/static/models/player.glb" in source and "/static/models/player.json" in source
+    assert "http" not in source
