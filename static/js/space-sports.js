@@ -272,8 +272,12 @@ registerSpace({
 // Within Sports, a new address (the Back button, or one typed) moves between levels.
 // spaces.js only switches spaces, so it ignores these.
 function sportsFollowAddress() {
-  if (currentSpace !== 'sports' || !location.hash.toLowerCase().startsWith('#sports')) return;
+  if (currentSpace !== 'sports') return;
+  // Any new address cancels an animation, even one leading out of Sports: motion.js calls
+  // leave() only partway through its sequence, and a kick landing before that would push its
+  // league's address over the one the Back button chose (final review)
   sportsCancelAnim();
+  if (!location.hash.toLowerCase().startsWith('#sports')) return;
   const where = sportsFromAddress(location.hash);
   if (where.level !== sportsLevel() || where.league !== sportsLeague) {
     sportsGo(where.level, where.league, { fromAddress: true });

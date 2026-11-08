@@ -1403,6 +1403,13 @@ The Sports space now moves. Asking JARVIS about football comes in stage 5.
   - **The motion at full frame rate.** The demo's browser pane was hidden during the kick's checks, so it drew no frames. That run did prove the safety timeout (the page came at 2.7 s); the timing checks then ran with a timer standing in for frames, and the look was judged from stills. The football's flight was seen at full frame rate.
   - **Safari.**
 - **Noted:** pressing 1 during the football's flight lets the copy finish its half-second flight over Home's opening, because the space hears it is leaving only partway through that opening. Nothing is left at the end.
+- **Final review** (a fresh reviewer of the whole branch). It traced every Review Focus item and found the skip and cancel paths, the data timing, the safety timeouts and the kick's maths sound. One finding fixed, reproduced first:
+  - **The Back button out of Sports during a kick** (arriving at the globe from Home, then Back while the ball was in the air): the kick still landed and wrote its league into the address, so JARVIS stayed in Sports on Serie A instead of going Home. A new address now cancels the animation whenever Sports is on screen, even one leading out of it. Reproduced in the demo before the fix (Sports, `#sports/serie-a`), gone after (Home, no address).
+  - **Left for later:**
+    - key 1, a chip or JARVIS switching space in the kick's last 0.7 s can add a league to the browser's history that was never shown (Back from Home would open it);
+    - a kick cancelled by an address that keeps the globe (`#Sports/Football` typed) leaves the league asked for in the background (nothing visible);
+    - the flying football's canvas is resized every frame, which a slow Mac might stutter on (the safety timeout still ends it);
+    - the copy grows to the globe area's size, not the zoomed globe's, and the kicked ball is small (about 11 pixels, shrinking to half).
 
 ---
 
