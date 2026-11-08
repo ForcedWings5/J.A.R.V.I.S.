@@ -2,6 +2,7 @@
 
 The model, Whisper and Kokoro are all replaced by fakes, so these run anywhere.
 """
+import hashlib
 import json
 import logging
 import os
@@ -189,7 +190,8 @@ def test_the_scripts_use_nothing_the_policy_blocks():
     """eval and friends fail only in the browser, so catch them here first."""
     blocked = ["eval(", "new Function", "setAttribute('style'", 'setAttribute("style"',
                "insertAdjacentHTML", "javascript:"]
-    for script in (config.STATIC_DIR / "js").glob("*.js"):
+    js = config.STATIC_DIR / "js"
+    for script in list(js.glob("*.js")) + list(js.glob("vendor/*.js")):   # three.js too (stage 4b)
         text = script.read_text()
         for word in blocked:
             assert word not in text, f"{script.name} uses {word}"
@@ -783,3 +785,32 @@ def test_the_kick_keeps_the_tested_poses_and_timing():
     gaps = [int(n) for n in re.search(r"GAPS = \[([^\]]+)\]", source).group(1).split(",")]
     assert gaps == [105, 105, 105, 125, 140, 90, 55, 90, 140, 170, 220]
     assert "END_MS: 2300" in source
+
+
+VENDOR = ROOT / "static" / "js" / "vendor"
+# The files as kept (imports rewritten). The tarball matched npm's published sha512 on 2026-11-08.
+VENDOR_SHA256 = {
+    "three.module.min.js": "08fd7545d13d2c7fb65ab691530a802dafefd638596501854f267d0fb13c39e7",
+    "GLTFLoader.js": "670474627e3e4b1837c5b5cd6fd8b8e0ff5dffc360fa958f3d58d0d4a0f6b684",
+    "BufferGeometryUtils.js": "7360730f68970254c4e61f25b341182a644c3318a9dacbfd6d8863b3777157a1",
+}
+# Real import lines only: "import ... from '...'" or "} from '...'" at the start of a line
+# (GLTFLoader's comments hold example code with "from '...'" in it)
+IMPORT_LINE = re.compile(r"^(?:import|export|\})[^\n]*?\bfrom\s*['\"]([^'\"]+)['\"]", re.M)
+
+
+def test_three_is_kept_inside_jarvis_and_pinned():
+    """three.js 0.170.0, owner's agreement 2026-11-08: a silent change to it must fail CI."""
+    assert sorted(p.name for p in VENDOR.iterdir()) == [
+        "BufferGeometryUtils.js", "GLTFLoader.js", "LICENSE", "three.module.min.js"]
+    assert "MIT" in (VENDOR / "LICENSE").read_text()
+    assert set(VENDOR_SHA256) == {"BufferGeometryUtils.js", "GLTFLoader.js", "three.module.min.js"}
+    for name, digest in VENDOR_SHA256.items():
+        assert hashlib.sha256((VENDOR / name).read_bytes()).hexdigest() == digest, name
+
+
+def test_the_vendored_scripts_import_only_our_own_copies():
+    """An import map would be inline code, which the policy blocks, so the paths are rewritten."""
+    for name in ("GLTFLoader.js", "BufferGeometryUtils.js", "three.module.min.js"):
+        for target in IMPORT_LINE.findall((VENDOR / name).read_text()):
+            assert target.startswith("./") and (VENDOR / target[2:]).exists(), (name, target)
