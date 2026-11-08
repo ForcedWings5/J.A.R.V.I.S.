@@ -303,6 +303,7 @@ fb.retry.addEventListener('click', () => { if (footballWanted) { footballLoading
 const sportsFootball = {
   enterPicker() {
     loadCoastlines().then(lines => sportsGlobe.setLines(lines));   // fetched once, shared
+    if (window.sportsPlayer) window.sportsPlayer.load();           // the 3D player, once, in the background
     sportsPickerOn = true;
     sportsGlobe.jumpTo(SPORTS_EUROPE.lat, SPORTS_EUROPE.lon, SPORTS_EUROPE.zoom);
     sportsGlobe.start();
@@ -321,13 +322,16 @@ const sportsFootball = {
     footballLoading(slug);
     footballAsk();
   },
-  // The kick, from the bottom left to the league's country on the globe
+  // The kick, from the bottom left to the league's country on the globe: the 3D player when he
+  // is ready (sports-player.js), the code-drawn one otherwise, so a click never waits
   kick(slug) {
     const league = sportsLeagueInfo(slug);
-    return playKick(fb.kick, () => {
+    const target = () => {
       const p = sportsGlobe.screenPoint(league.lat, league.lon);
       return p.visible ? p : { x: fb.kick.clientWidth / 2, y: fb.kick.clientHeight / 2 };
-    });
+    };
+    const player = window.sportsPlayer;
+    return player && player.ready ? player.play(fb.kick, target) : playKick(fb.kick, target);
   },
   // The page is left: no timers, and a late reply draws nothing
   leaveLeague() {
