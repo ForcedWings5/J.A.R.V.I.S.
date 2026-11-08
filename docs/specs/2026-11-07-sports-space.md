@@ -1,7 +1,8 @@
 # The Sports space, and one shared door to the internet
 
-Status: design agreed with the owner in conversation on 2026-11-03 (paused) and 2026-11-07.
-Not built. Builds on `docs/specs/2026-10-27-spaces-and-work.md` (spaces, `registerSpace`) and
+Status: design agreed with the owner in conversation on 2026-11-03 (paused) and 2026-11-07;
+the 3D player (stage 4b) agreed on 2026-11-08. Stages 1 to 3 built (CHANGELOG sections 59 to
+61), stage 4 built (section 62). Builds on `docs/specs/2026-10-27-spaces-and-work.md` (spaces, `registerSpace`) and
 `docs/specs/2026-11-05-weather-space.md` (outside data, the globe, the privacy rule).
 
 ## Why
@@ -38,6 +39,7 @@ moment to give JARVIS one shared door to the internet instead of one per service
 | Code shape | One `sports` space with levels inside it (hub, football, league); each sport registers itself | Adding F1 later is a new file and a registration, not a rebuild. |
 | The door to the internet | One shared module, `outside.py`, for Weather and Football | One place where JARVIS goes online, one place to check. Owner's agreement 2026-11-07 (it moves a security control). |
 | Silhouette quality | Code-drawn: a jointed body model, about 12 key poses per animation, smooth curves between them | A throwaway test (2026-11-07) was judged good enough by the owner. No images, so the security policy is unchanged. |
+| The player (2026-11-08, replaces the silhouette where it can) | A downloaded 3D character and recorded moves, drawn with three.js as a hologram outline in a Roma-red shirt; the code-drawn kick stays as the fallback | Throwaway tests on 2026-11-08: the owner judged recorded movement far better than drawn poses, and agreed to three.js as a new dependency. See "The 3D player". |
 | Crests and logos | None; club colours instead | Logos need permission. |
 
 ## The privacy rule, and what Football sends
@@ -88,6 +90,8 @@ data and a stated interest in two clubs); `SECURITY.md` section 7 records it.
 - The silhouette is JARVIS's pale cyan with its glow, far limbs dimmer than near ones. Its
   body model, poses and timing come from the 2026-11-07 test: limbs keep their lengths, the
   lowest foot always touches the floor, about 12 key poses joined by Catmull-Rom curves.
+  Since stage 4b this code-drawn kick is the fallback; when the 3D player is ready, it plays
+  instead (about 4.9 s in all; see "The 3D player").
 - The ball: shaded, with panels, a short squash at the strike, spin, a trail, a floor shadow
   that fades as it rises, one bounce and a ripple on landing.
 
@@ -121,6 +125,112 @@ Every page ends with the credit line "Football data provided by the Football-Dat
 Not in version 1: zone markings in the table (European places, relegation), which differ by
 league and season; player data (not on the free plan).
 
+## The 3D player (stage 4b, added 2026-11-08)
+
+The owner compared the code-drawn kick with a downloaded character in throwaway tests and chose
+the character. Agreed in conversation, section by section, on 2026-11-08.
+
+### What it looks like and does
+
+- **The character:** Mixamo's "Ch38" (Adobe's free library), downloaded by the owner with two
+  recorded moves, "Receive Soccerball" and "Strike Forward Jog".
+- **The look:**
+  - The body is a hologram: see-through, glowing cyan where it turns away from you, with faint
+    scan lines and a slight flicker. The hair is dimmed and the eyelashes left out.
+  - The character's own T-shirt is the jersey: Roma dark red (`#8e1f2f`) with gold (`#f0bc42`)
+    collar, hem and sleeve ends.
+  - On the back of the shirt, in gold: "JARVIS" above a large "5", and "SPQR" below it.
+  - The ball is the hub's own 3D football (`drawSportAt`).
+- **The kick, at 1.25 times the recorded speed (the owner's choice):**
+  - **0 to about 0.9 s:** the ball drops in from above the globe as the player runs in, from
+    the bottom left, seen from behind and to the right.
+  - **About 0.9 to 3.3 s:** his touches: the left foot controls it in the air; the left foot
+    drags it across; the right foot stops it; the right sole rolls it back; the left foot
+    pushes it on.
+  - **About 3.4 s:** the receive blends into the strike (0.4 s, recorded time); he jogs after
+    the ball.
+  - **About 3.7 s:** the strike. The ball flies to the country's pin, bounces and ripples,
+    with the existing flight code.
+  - **About 4.9 s:** the league page.
+
+  The exact moments come from the moves themselves (the touches where the feet meet the ball,
+  the strike where the right foot moves fastest).
+
+### How it is built
+
+- **three.js 0.170.0 inside JARVIS** (`static/js/vendor/`): `three.module.min.js`,
+  `GLTFLoader.js` and `BufferGeometryUtils.js`, with the MIT licence.
+  - **Where it comes from:** downloaded once from the npm registry (with the owner's OK,
+    naming the file, source and size), and checked against the registry's published
+    fingerprint.
+  - **One change to it:** GLTFLoader's `from 'three'` becomes our copy's path, because an
+    import map would be inline code, which the security policy blocks.
+  - **Pinned:** the files' SHA-256 fingerprints are in a test.
+- **`static/js/sports-player.js`** (an ES module): loads the model, draws it on its own WebGL
+  canvas (`#sp-player`, behind `#sp-kick`), and says where the ball is at each moment.
+  - **Its shaders:** the hologram (edge glow, scan lines, flicker) and the shirt (shaded red,
+    gold trims, the print drawn on a canvas in code and laid on the back of the shirt).
+  - **What it gives the other scripts:** `ready`, and `play(target)`, returning the same
+    `{ done, skip(), cancel() }` as `playKick`.
+- **The model files, made once on the owner's Mac** by a one-off page in the scratchpad with a
+  small local script that saves its output:
+  - **The page's work:** it loads the two Mixamo files, joins the moves (the touches kept, the
+    0.4 s blend, the strike turned to face the run-up), bakes them into one animation at
+    1.25x, and drops the textures and eyelashes.
+  - **`static/models/player.glb`:** the character and that animation, a few MB.
+  - **`static/models/player.json`:** the moments (the touches, where the ball is at each, the
+    strike, where the ball waits for it, the end). Positions are in metres, times in seconds.
+  - **Never in git:** `static/models/` is git-ignored. Mixamo's licence does not allow passing
+    the files on.
+  - **Making them again:** README says how.
+- **Loading:** the first time the league globe opens (not at page start), in the background.
+  The WebGL canvas is set up then and kept.
+- **Choosing the kick:** a country click plays the 3D kick when `ready`, otherwise the
+  code-drawn kick (`playKick`), so a very quick click never waits.
+- **What does not change:** the data request starting with the kick, skipping (a click or
+  Esc), cancelling (leaving, the Back button, a new address), the safety timeout (the end
+  plus 0.4 s), Reduce motion (no kick), and addresses opening the page directly.
+- **Cost:** the 3D scene draws only while a kick plays. The drawing resolution is capped at
+  twice the screen's pixels.
+
+### When something goes wrong
+
+- **The files are missing or broken:** the code-drawn kick plays, and one console line says
+  why. This covers CI, another Mac, a deleted file, and a `player.json` that fails its check
+  (every time and position a finite number, the times in order, within the animation).
+- **WebGL fails, or the Mac drops the 3D canvas (`webglcontextlost`):** the kick in progress
+  ends through its safety timeout, and later kicks use the fallback.
+- **The model is still downloading:** the fallback plays until it is ready.
+
+### Security
+
+- **The Content Security Policy is unchanged.**
+  - The scripts and the model come only from JARVIS's own address.
+  - There are no textures, so no `blob:` images.
+  - There is no inline import map.
+  - WebGL is not governed by the policy.
+- **Nothing new goes online.**
+- **`SECURITY.md`** notes the dependency, where it came from and how it is pinned.
+
+### Testing
+
+- **pytest:**
+  - the vendored files' fingerprints;
+  - GLTFLoader importing only our own paths;
+  - the script order and `#sp-player`;
+  - the security-policy scan covering `static/js/vendor/`;
+  - `static/models/` in `.gitignore`;
+  - the `player.json` rules kept as plain data that the page's checker uses.
+- **In the page:** the `player.json` checker on good and bad examples.
+- **Demo with the model:**
+  - the timing (strike at about 3.7 s, page at about 4.9 s);
+  - skipping, leaving mid-kick, slow and failed replies, a resize, and Reduce motion;
+  - the time each frame takes;
+  - no policy violations.
+- **Demo without the model** (its download blocked in the demo only): the fallback plays.
+- **By the owner:** watching it at full speed, and in Safari.
+- **No eval:** the model's instructions do not change.
+
 ## How it works
 
 ### Files
@@ -137,7 +247,10 @@ league and season; player data (not on the free plan).
 | `static/js/spaces.js` | An address like `#sports/serie-a` opens the `sports` space (the part before `/`); the space reads the rest. |
 | `static/js/globe.js` | The coastlines are loaded once here and shared, so Weather's globe and Sports' globe use one copy (moved from `space-weather.js`). |
 | `static/js/space-sports.js` (new) | `registerSpace` for Sports (key 4): the levels, the hub, the league picker on the globe, the league pages, the trail, Esc. Talks only to `/sports/...`. Each sport registers with `registerSport({name, title, object, ready})`. |
-| `static/js/sports-kick.js` (new) | The body model, the kick's key poses and timing, the ball's flight. Pure functions (`poseAt(t)`, `skeleton(pose)`, `ballAt(t)`) plus drawing. |
+| `static/js/sports-kick.js` (new) | The body model, the kick's key poses and timing, the ball's flight. Pure functions (`poseAt(t)`, `skeleton(pose)`, `ballAt(t)`) plus drawing. Since stage 4b, the fallback kick and the ball's flight for both kicks. |
+| `static/js/sports-player.js` (new, stage 4b) | The 3D player: loads the model, draws the hologram and the shirt, plays the kick, says where the ball is at each moment. |
+| `static/js/vendor/` (new, stage 4b) | three.js 0.170.0: `three.module.min.js`, `GLTFLoader.js`, `BufferGeometryUtils.js` and the MIT licence. |
+| `static/models/` (stage 4b, git-ignored) | `player.glb` and `player.json`, made on the owner's Mac from the Mixamo files. Never committed. |
 | `static/css/space-sports.css` (new) | Layout, glass, and the themes (`data-theme="roma"`, `"newcastle"`). |
 | `static/index.html` | The Sports section and the new files, in order. |
 | `tests/football_data.py` (new) | Made-up replies shaped like football-data.org's (from its docs, read 2026-11-07), and `serve`. |
@@ -276,6 +389,9 @@ is no wait to cover a late event; CHANGELOG section 58).
   "Outside requests go only through `outside.get`", the tool order.
 - Outside text: team and competition names (cleaned, at most 40 characters) and numbers reach
   the page and the model; nothing longer. News stays out until its own prompt-injection design.
+- Stage 4b adds a dependency the page runs, three.js, kept inside JARVIS and pinned by
+  fingerprint, and files the owner keeps on the Mac (`static/models/`). The policy and the
+  list of outside addresses are unchanged. See "The 3D player", Security.
 
 ## Testing
 
@@ -329,6 +445,9 @@ One branch per stage; each merged when CI is green and the owner has checked it.
    fades.
 4. **The animations.** The floating objects, football to globe, the silhouette kick and the
    ball's flight and landing.
+   - **4b. The 3D player.** three.js inside JARVIS; the model files made on the owner's Mac;
+     `sports-player.js`; the code-drawn kick as the fallback. It has its own branch, after
+     stage 4 is merged.
 5. **JARVIS.** `show_league`, `get_league`, `get_team`, the `league` event, the eval cases, a
    full eval before and after.
 
@@ -348,7 +467,14 @@ agreement before anything is fetched.
   a themed one up to 4). The page says "Try again in a minute"; pages seen in the last 10
   minutes cost nothing.
 - **Delayed scores**: the free plan is not live. The page says so during a match.
-- **The animation's quality** is stylised by design (the test was judged good enough); more
-  lifelike motion would need recorded motion or drawn frames, which JARVIS does not have.
+- **The animation's quality:** the code-drawn kick is stylised by design (the test was judged
+  good enough). Stage 4b brings recorded motion, through a downloaded character.
+- **The 3D player's files live only on the owner's Mac.** A new Mac, or losing the folder,
+  means making them again from the Mixamo downloads (README); until then the fallback plays.
+  If Mixamo changes or closes, the files already made keep working.
+- **A new dependency** (three.js). It is pinned to one version and fingerprinted, so it never
+  changes by itself. Updating it is a deliberate step, with a fresh fingerprint check.
+- **Length:** the 3D kick takes about 4.9 s before the page, against 2.3 s. A click or Esc
+  skips it.
 - **Two globes** on one page (Weather's and Sports') share the coastlines; each draws only when
   its space is shown.
