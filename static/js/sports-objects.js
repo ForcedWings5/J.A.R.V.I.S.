@@ -215,7 +215,15 @@ function drawSportObject(canvas, name, seconds) {
   const ctx = canvas.getContext('2d');
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   ctx.clearRect(0, 0, w, h);
-  const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.42;
+  drawSportAt(ctx, name, seconds, w / 2, h / 2, Math.min(w, h) * 0.42);
+}
+
+// Draw one sport's object, turned to `seconds`, centred on (cx, cy) with radius R, on a canvas
+// already set up (the kick draws the football this way, so it is the hub's ball)
+function drawSportAt(ctx, name, seconds, cx, cy, R) {
+  const o = SPORT_OBJECTS[name];
+  if (!o) return;
+  const ratio = window.devicePixelRatio || 1;
   const ay = seconds * o.speed, ax = o.tilt, s = o.shape;
   if (s.sphere) {                                        // a dark, softly lit ball under the lines
     const g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, R * 0.1, cx, cy, R);

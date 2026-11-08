@@ -707,7 +707,7 @@ def test_the_league_endpoint_refuses_other_websites_and_plain_text(client):
 
 # ---------- the Sports page (docs/specs/2026-11-07-sports-space.md, stage 3) ----------
 
-SPORTS_JS = ["static/js/space-sports.js", "static/js/sports-football.js"]
+SPORTS_JS = ["static/js/space-sports.js", "static/js/sports-football.js", "static/js/sports-kick.js"]
 
 
 def test_the_sports_section_and_its_files_are_on_the_page(client):
@@ -766,3 +766,20 @@ def test_the_hub_floats_only_with_motion():
     assert re.search(r"body\.reduce [^{]*\.sp-object[^{]*\{[^}]*animation:\s*none", css)
     reduced = css[css.index("@media (prefers-reduced-motion: reduce)"):]
     assert re.search(r"\.sp-object[^{]*\{[^}]*animation:\s*none", reduced)
+
+
+def test_the_kick_script_loads_in_order():
+    page = (ROOT / "static" / "index.html").read_text()
+    order = [page.index(f"/static/js/{name}") for name in
+             ("sports-objects.js", "sports-kick.js", "space-sports.js", "sports-football.js", "motion.js")]
+    assert order == sorted(order)
+
+
+def test_the_kick_keeps_the_tested_poses_and_timing():
+    """The owner judged the 2026-11-07 test good enough: its 12 poses and timing, unchanged."""
+    source = (ROOT / "static" / "js" / "sports-kick.js").read_text()
+    keys = source[source.index("KEYS"):source.index("GAPS")]
+    assert len(re.findall(r"\{ x:", keys)) == 12
+    gaps = [int(n) for n in re.search(r"GAPS = \[([^\]]+)\]", source).group(1).split(",")]
+    assert gaps == [105, 105, 105, 125, 140, 90, 55, 90, 140, 170, 220]
+    assert "END_MS: 2300" in source
