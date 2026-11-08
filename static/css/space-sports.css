@@ -1,18 +1,23 @@
 /* The Sports space (static/js/space-sports.js, sports-football.js): the hub of sports, Football's
    league picker on the globe, and a league's page. data-level on the section says which is
-   shown; each fades in (stage 4 adds the motion). JARVIS's dock is beside it (jarvis.css). */
+   shown; each fades in. The objects float, the football grows into the globe and the kick
+   lands on a league (stage 4). JARVIS's dock is beside it (jarvis.css). */
 #space-sports { position:relative; }
 #space-sports .panel { cursor:default; }
 
-/* Only the current level shows; it fades in, except with Reduce motion */
+/* Only the current level shows; it fades in (shorter with Reduce motion: a fade, no motion) */
 #space-sports:not([data-level="hub"]) .sp-hub,
 #space-sports:not([data-level="hub"]) .sp-note,
 #space-sports:not([data-level="football"]) .sp-picker,
 #space-sports:not([data-level="league"]) .sp-league { display:none; }
 .sp-hub, .sp-picker, .sp-league { animation:sp-in .35s ease; }
 @keyframes sp-in { from { opacity:0; } to { opacity:1; } }
-body.reduce .sp-hub, body.reduce .sp-picker, body.reduce .sp-league { animation:none; }
-@media (prefers-reduced-motion: reduce) { .sp-hub, .sp-picker, .sp-league { animation:none; } }
+body.reduce .sp-hub, body.reduce .sp-picker, body.reduce .sp-league { animation:sp-in .2s ease; }
+body.reduce .sp-object { animation:none; }
+@media (prefers-reduced-motion: reduce) {
+  .sp-hub, .sp-picker, .sp-league { animation:sp-in .2s ease; }
+  #space-sports .sp-object { animation:none; }    /* the id outweighs the drift's rules below */
+}
 
 /* The trail: "Sports / Football / Serie A", and Back */
 .sp-trail { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:38px;
@@ -31,6 +36,23 @@ body.reduce .sp-hub, body.reduce .sp-picker, body.reduce .sp-league { animation:
   border:1px solid var(--line); background-color:var(--glass); -webkit-backdrop-filter:var(--blur);
   backdrop-filter:var(--blur); box-shadow:var(--rim); font:inherit; }
 .sp-object:hover, .sp-object:focus-visible { border-color:var(--accent); box-shadow:var(--rim), 0 0 18px var(--glow); }
+/* Each object drifts and tilts on its own slow loop, out of step with the others. Hovering grows
+   one with the separate `scale` property, so it does not fight the drift's transform. */
+.sp-object { animation:sp-drift 7s ease-in-out infinite; transition:scale .2s ease; }
+.sp-object:hover, .sp-object:focus-visible { scale:1.06; }
+.sp-object:nth-child(1) { animation-duration:7s;   animation-delay:-1s; }
+.sp-object:nth-child(2) { animation-duration:8.5s; animation-delay:-4s; }
+.sp-object:nth-child(3) { animation-duration:6.5s; animation-delay:-2.5s; }
+.sp-object:nth-child(4) { animation-duration:9s;   animation-delay:-6s; }
+.sp-object:nth-child(5) { animation-duration:7.5s; animation-delay:-3.5s; }
+@keyframes sp-drift {
+  0%, 100% { transform:translate(0, 0) rotate(0deg); }
+  25% { transform:translate(5px, -9px) rotate(-2deg); }
+  50% { transform:translate(-3px, -12px) rotate(1.5deg); }
+  75% { transform:translate(-6px, -4px) rotate(2.5deg); }
+}
+/* The football is picked (space-sports.js): the others fade */
+.sp-picking .sp-object:not(.sp-chosen) { opacity:0; transition:opacity .2s ease, scale .2s ease; }
 .sp-canvas { width:96px; height:96px; display:block; }      /* drawn by sports-objects.js */
 .sp-object:not([data-sport="football"]) .sp-canvas { opacity:.75; }
 .sp-name { font-size:13px; letter-spacing:.5px; }

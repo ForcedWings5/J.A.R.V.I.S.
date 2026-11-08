@@ -757,3 +757,12 @@ def test_the_club_badges_stay_on_this_mac():
     page = (ROOT / "static" / "index.html").read_text()
     crest = re.search(r"<img [^>]*id=\"sp-crest\"[^>]*>", page)
     assert crest and " src=" not in crest.group(0) and 'alt=""' in crest.group(0)
+
+
+def test_the_hub_floats_only_with_motion():
+    """The objects drift (stage 4), but never with Reduce motion, JARVIS's or the system's."""
+    css = (ROOT / "static" / "css" / "space-sports.css").read_text()
+    assert "@keyframes sp-drift" in css
+    assert re.search(r"body\.reduce [^{]*\.sp-object[^{]*\{[^}]*animation:\s*none", css)
+    reduced = css[css.index("@media (prefers-reduced-motion: reduce)"):]
+    assert re.search(r"\.sp-object[^{]*\{[^}]*animation:\s*none", reduced)
