@@ -219,7 +219,32 @@ function drawKick(canvas, t, target) {
   const path = { from, to, peak: Math.max(r, Math.min(from[1], to[1]) - h * 0.38), hop: 8 * L.s };
   const ball = kickMath.ballAt(t, path);
 
-  // Its trail: where it was over the last moments of the flight (worked out, not stored)
+  // Its shadow on the floor, fainter as it rises
+  if (t < KICK.STRIKE_MS + 200) {
+    const up = Math.max(0, from[1] - ball.y);
+    ctx.beginPath();
+    ctx.ellipse(ball.x, L.gy, r * ball.scale * Math.max(0.3, 1 - up / 300), 3, 0, 0, 2 * Math.PI);
+    ctx.fillStyle = `rgba(0,0,0,${0.5 * Math.max(0, 1 - up / 200)})`;
+    ctx.fill();
+  }
+  if (t >= KICK.STRIKE_MS) drawFlight(ctx, t, path, r);
+  else kickBall(ctx, ball, r);                    // waiting at the foot
+}
+
+// The ball: the hub's 3D football, squashed for a moment at the strike and landing
+function kickBall(ctx, ball, r) {
+  ctx.save();
+  ctx.translate(ball.x, ball.y);
+  ctx.scale(1 / ball.squash, ball.squash);
+  drawSportAt(ctx, 'football', ball.spin, 0, 0, r * ball.scale);
+  ctx.restore();
+}
+
+// The ball from the strike on (t in kick ms, at or after KICK.STRIKE_MS): its trail, the ball,
+// and the ripple where it lands. path is kickMath.ballAt's; r the ball's radius at rest, in
+// pixels. Both kicks use it: this one and the 3D player's (sports-player.js).
+function drawFlight(ctx, t, path, r) {
+  // The trail: where it was over the last moments of the flight (worked out, not stored)
   for (let k = 12; k >= 1; k--) {
     const tk = t - 16 * k;
     if (tk < KICK.STRIKE_MS || tk >= KICK.LAND_MS) continue;
@@ -229,26 +254,12 @@ function drawKick(canvas, t, target) {
     ctx.fillStyle = `rgba(160,225,255,${0.25 * i / 12})`;
     ctx.fill();
   }
-  // Its shadow on the floor, fainter as it rises
-  if (t < KICK.STRIKE_MS + 200) {
-    const up = Math.max(0, from[1] - ball.y);
-    ctx.beginPath();
-    ctx.ellipse(ball.x, L.gy, r * ball.scale * Math.max(0.3, 1 - up / 300), 3, 0, 0, 2 * Math.PI);
-    ctx.fillStyle = `rgba(0,0,0,${0.5 * Math.max(0, 1 - up / 200)})`;
-    ctx.fill();
-  }
-  // The ball itself: the hub's 3D football, squashed for a moment at the strike and landing
-  ctx.save();
-  ctx.translate(ball.x, ball.y);
-  ctx.scale(1 / ball.squash, ball.squash);
-  drawSportAt(ctx, 'football', ball.spin, 0, 0, r * ball.scale);
-  ctx.restore();
-
+  kickBall(ctx, kickMath.ballAt(t, path), r);
   // The landing: a ripple that grows and fades
   if (t > KICK.LAND_MS) {
     const p = Math.min(1, (t - KICK.LAND_MS) / 900);
     ctx.beginPath();
-    ctx.arc(to[0], to[1], 6 + p * 40, 0, 2 * Math.PI);
+    ctx.arc(path.to[0], path.to[1], 6 + p * 40, 0, 2 * Math.PI);
     ctx.strokeStyle = `rgba(76,201,240,${0.8 * (1 - p)})`;
     ctx.lineWidth = 2;
     ctx.stroke();
