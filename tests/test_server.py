@@ -722,7 +722,8 @@ def test_the_sports_section_and_its_files_are_on_the_page(client):
 def test_every_element_the_sports_scripts_look_up_exists():
     page = (ROOT / "static" / "index.html").read_text()
     for path in SPORTS_JS:
-        for element_id in re.findall(r"getElementById\('([^']+)'\)", (ROOT / path).read_text()):
+        # By getElementById, or by sports-football.js's short helper fbEl (final review)
+        for element_id in re.findall(r"(?:getElementById|fbEl)\('([^']+)'\)", (ROOT / path).read_text()):
             assert f'id="{element_id}"' in page, (path, element_id)
 
 

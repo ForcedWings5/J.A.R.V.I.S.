@@ -1343,6 +1343,20 @@ Sports is now space 4 on the dashboard. It uses plain fades; the floating object
   - **Live:** Roma 2nd on 27 points, next Parma v Roma on Saturday 21 November; Newcastle 11th on 12 points, next Newcastle v Arsenal.
 - **Fixed in the demo:** the page's head shrank to a thin strip, and Roma's red title was hard to read on its red band (now gold).
 - **Not checked:** Safari, the look in motion (stage 4), and JARVIS's football tools (stage 5).
+- **Final review** (a fresh reviewer of the whole branch, offline). It traced every Review Focus item in the code and found one request at a time, late replies dropped, timers cleared on every way out, addresses and history consistent, and no "undefined" from the server's data. Two findings fixed, each first reproduced:
+  - **The element-id test missed 16 ids.** The league page looks its elements up through a short helper, which the test's pattern did not see, so renaming one (such as Try again's) would have broken the page with CI still green. The test now reads both forms; renaming `sp-retry` makes it fail (checked).
+  - **"Still waiting" could go missing:** leave a slow league and pick one again while its request is still out, and the page said only "Loading…" for up to about 15 seconds. The 4-second message now starts whenever a league starts loading. Reproduced in the demo before the fix, gone after.
+  - **Left for later:**
+    - a reply of an unexpected shape would leave the page on "Loading"; JARVIS's own server always sends the right shape;
+    - there is no time limit on the page's request (the server's are 5 seconds each);
+    - a failure leaves the panels empty around the message;
+    - a Champions League table with no rows shows only its heading;
+    - an earlier copy's day and time come from two fields that can disagree just after midnight;
+    - a missing competition name leaves a trailing " · ";
+    - the table scrolls with the page, not inside its panel (the spec says inside);
+    - Newcastle's made-up season is used only by the demo;
+    - section 58's "before" score covered 77 cases, not 78 (the same prompt, so still a fair comparison);
+    - "#sports/" typed on the hub stays as typed.
 
 ---
 

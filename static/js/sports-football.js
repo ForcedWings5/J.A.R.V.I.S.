@@ -149,6 +149,14 @@ function footballLoading(slug) {
   for (const box of [fb.next, fb.form, fb.table, fb.results, fb.upcoming, fb.fixtures, fb.cl]) fbNote(box, 'Loading');
   fb.cup.textContent = '';
   fb.updated.textContent = '';
+  // "Still waiting" after 4 seconds of loading this league, whether its request is sent now or
+  // waits behind one already in flight (final review: re-picking during a slow request)
+  clearTimeout(footballSlow);
+  footballSlow = setTimeout(() => {
+    if (footballWanted === slug && fb.status.textContent === 'Loading…') {
+      fb.status.textContent = 'Still waiting for the football data…';
+    }
+  }, 4000);
   const themed = Boolean(SPORTS_THEMES[slug]);
   for (const p of fb.teamPanels) p.hidden = !themed;
   if (themed) sportsSection.dataset.theme = SPORTS_THEMES[slug];
@@ -159,10 +167,6 @@ async function footballAsk() {
   if (footballAsking || !footballWanted) return;
   const slug = footballWanted;
   footballAsking = slug;
-  clearTimeout(footballSlow);
-  footballSlow = setTimeout(() => {
-    if (footballAsking === slug && footballWanted === slug) fb.status.textContent = 'Still waiting for the football data…';
-  }, 4000);
   let reply;
   try {
     const res = await fetch('/sports/league', {
@@ -175,7 +179,6 @@ async function footballAsk() {
     reply = { ok: false, status: 0, data: {} };
   }
   footballAsking = null;
-  clearTimeout(footballSlow);
   if (footballWanted === slug && currentSpace === 'sports' && sportsLevel() === 'league') {
     if (reply.ok) footballDraw(reply.data);
     else footballFailed(reply);
