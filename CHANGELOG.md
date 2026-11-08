@@ -1411,6 +1411,52 @@ The Sports space now moves. Asking JARVIS about football comes in stage 5.
     - the flying football's canvas is resized every frame, which a slow Mac might stutter on (the safety timeout still ends it);
     - the copy grows to the globe area's size, not the zoomed globe's, and the kicked ball is small (about 11 pixels, shrinking to half).
 
+## 63. Sports, stage 4b: the 3D player
+
+Picking a league on the globe now plays a real person's movement. A downloaded 3D character runs in, controls the ball, takes his touches and strikes it to the country. He is a glowing hologram outline wearing a Roma-red shirt with "JARVIS", a big "5" and "SPQR" in gold on the back. The ball is the hub's own football. The code-drawn kick from stage 4 stays as the fallback.
+
+- **Why:** the owner compared the code-drawn kick with downloaded characters in throwaway tests (2026-11-08) and chose recorded movement. Spec: "The 3D player" in `docs/specs/2026-11-07-sports-space.md`.
+- **What plays, at 1.25 times the recorded speed (the owner's choice):**
+  - The ball drops in as the player runs in.
+  - His touches, from Mixamo's "Receive Soccerball": left foot in the air, left foot across, right foot stops it, right sole back, left foot on.
+  - A 0.4 s blend into "Strike Forward Jog" and the strike at 3.7 s.
+  - The ball flies to the pin, with the same flight, bounce and ripple as before.
+  - The league page at about 5 s.
+- **A new dependency, three.js 0.170.0**, agreed by the owner. Kept inside JARVIS in `static/js/vendor/`, so the page still loads nothing from anywhere else.
+  - **Where it came from:** downloaded once from the npm registry with the owner's OK (7.2 MB). Its sha512 matched npm's published fingerprint before anything in it was used.
+  - **What changed in it:** only the import lines of `GLTFLoader.js` and `BufferGeometryUtils.js` point at our copies, because an import map would be inline code, which the security policy blocks.
+  - **Tests:** they pin the three files' SHA-256 fingerprints and check every import. The policy scan now covers the vendor folder.
+  - **The policy is unchanged.**
+- **The character stays on this Mac.** The owner's Mixamo downloads are in `models/mixamo/`. `scripts/bake_player.py`, a small tool on `127.0.0.1:8018`, serves a page that joins the two moves and bakes them into one animation.
+  - **What it writes:** `static/models/player.glb` (7.2 MB, from 104 MB of downloads: no textures, no eyelashes) and `player.json` (the moments and the ball's positions).
+  - **What it checks:** it saves only those two files, with size limits, and checks the JSON first. It serves nothing outside its own folders.
+  - **Never in git:** `static/models/` is ignored, because Mixamo's licence does not allow passing the files on. README says how to make them again.
+- **`sports-player.js`** (an ES module, loaded last) loads the files the first time the globe opens, in the background.
+  - **The look:** it draws the player with the test's hologram and shirt shaders on its own WebGL canvas, and the ball inside the 3D scene until the strike, so the player hides it when it is behind him. From the strike on, it uses the same `drawFlight` as the code-drawn kick (moved out of `drawKick` for this).
+  - **The same behaviour:** it offers the same `{ done, skip(), cancel() }`, so skipping, cancelling, the safety timeout and Reduce motion behave exactly as before.
+- **The fallback:** a click before the player is ready, missing or broken files, no WebGL, or a lost 3D canvas: the code-drawn kick plays, with one console warning.
+- **Found and fixed while building:**
+  - **Mixamo's file holds copies of some bones for the clothes:** 128 bone objects for 65 names. Baking every bone gave tracks with the same name that overwrote the real bones, so in JARVIS the clothes and feet were wrong. The bake now records each name once.
+  - **The camera** was retuned for the globe's square area. The test's values framed a whole window, and in the picker they put the player small, over the pins.
+- **Tests:** 846, up from 819:
+  - the vendor fingerprints and imports;
+  - the bake tool's checks (good and 18 bad `player.json` files, the two allowed names, paths outside its folders refused, `127.0.0.1` only);
+  - `static/models/` ignored;
+  - the module's script tag, canvas and imports.
+- **Checked in the page:** the real `player.json` passes and 18 bad ones are refused. It loads in about 0.2 s. At each touch the ball is within 6 to 18 cm of the touching toe, and 9 cm at the strike. A lost canvas turns the player off with one warning.
+- **Checked in a demo** (made-up league data; the browser pane was hidden, so a 16 ms timer stood in for frames, and the look was judged from stills):
+  - the page arrives at about 5.0 s, filled, after one request;
+  - each frame takes 2.2 ms to draw (most under 3.6 ms);
+  - skipping by a click, Esc or a second pin;
+  - Back and key 1 mid-kick, with nothing drawn later, even with a slow reply;
+  - a resize mid-kick: the ball lands on the pin;
+  - Reduce motion;
+  - a click before loading, a blocked model, a broken `player.json`, and a canvas lost mid-kick: each gives the code-drawn kick, on time;
+  - framing at 1280 and 900 pixels wide;
+  - no policy violations.
+- **Not checked:** the motion at full frame rate (the pane was hidden), and Safari.
+- **The two demo-only helpers** on `window.sportsPlayer`: `_loseContext()` and `_still(T, …)`, kept for such checks.
+
 ---
 
 ## Status
@@ -1444,6 +1490,7 @@ The Sports space now moves. Asking JARVIS about football comes in stage 5.
 | Sports, stage 2: the football server (section 60) | Done: 806 tests; checked live with the owner's key (team ids, reply shapes, Serie A and Premier League pages); no page or tools yet |
 | Sports, stage 3: the page (section 61) | Done: 816 tests; evals 237/240 (prompt `825d45cfb641`); checked in a demo and live; not yet in Safari or seen in motion; no football tools yet |
 | Sports, stage 4: the animations (section 62) | Done: 819 tests; checked in a demo (the kick's timing with a timer standing in for frames, its look from stills); not yet seen at full frame rate or in Safari; no prompt change |
+| Sports, stage 4b: the 3D player (section 63) | Done: 846 tests; three.js 0.170.0 pinned; the model files on this Mac only; checked in a demo with a timer standing in for frames; not yet seen at full frame rate or in Safari |
 | Other websites (Origin check) | Done: attack shown and then blocked in the real browser, dashboard unaffected, 406 tests (section 36) |
 | Voice input, voice output, voice mode switch | Tested and working |
 | Calendar views (compact agenda, year/month/week/day) | Layout confirmed good; all four views checked in a demo, on Home and in Work (section 51) |

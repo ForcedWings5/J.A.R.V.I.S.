@@ -76,9 +76,11 @@ Each of these is in the code or the system and has been checked.
 | Every SQL value goes through `?` parameters | SQL injection. |
 | Calculator parses with `ast`, never `eval` | Running arbitrary code through arithmetic. |
 | Pinned dependency versions, and a fingerprint (hash) of every file, checked on install (`--require-hashes`, also in CI) | A bad new release being installed without my knowing, and a file being swapped on PyPI or on the way. CHANGELOG section 49. |
+| three.js 0.170.0 (the Sports 3D player) is kept inside JARVIS in `static/js/vendor/`: downloaded once from the npm registry with my OK, its sha512 matched npm's published fingerprint, only its import lines changed, and the three files' SHA-256 pinned in a test (CHANGELOG section 63) | A changed or swapped copy of the library running in the page. It is served from JARVIS's own address like every other script, so the security policy is unchanged; updating it is a deliberate step with a fresh check. |
 | Whisper loads offline (`HF_HUB_OFFLINE=1`, set in `config.py`, pinned by a test) | Whisper telling huggingface.co each time it starts, and the speech model changing without my knowing (a supply-chain risk): it changes only when I run the download in README. Checked: a real transcription contacts no host (CHANGELOG section 45). |
 | Daily backups, integrity-checked, 7 kept | Software mistakes and corruption. Not hardware loss (same disk). |
 | `jarvis.db`, `backups/`, `logs/`, `evals/results/`, `.env` are in `.gitignore` | Personal data being pushed to GitHub. |
+| `static/models/` and `models/` are in `.gitignore` (pinned by a test for `static/models/`) | The Mixamo character, whose licence does not allow passing it on, being pushed to GitHub. |
 
 ## 5. Decisions
 

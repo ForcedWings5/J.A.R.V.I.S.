@@ -129,6 +129,28 @@ The key can also come from a `FOOTBALL_DATA_KEY` environment variable, which win
 Never put it in code, a commit, or a chat. VS Code may offer to load `.env` into its terminals
 (`python.terminal.useEnvFile`): leave that off, since JARVIS reads the file itself.
 
+## Making the 3D player (Sports)
+
+When you pick a league on the globe, a 3D player kicks the ball to the country. He is made from
+files that stay on this Mac (Mixamo's licence does not allow passing them on), so git ignores
+them. Without them, JARVIS plays its code-drawn kick instead, so this is optional, and needed
+again on a new Mac.
+
+1. At mixamo.com (Adobe's free library, free Adobe account), download the character **Ch38**
+   twice, once with each move: **Receive Soccerball** and **Strike Forward Jog**. Settings:
+   FBX Binary (.fbx), With Skin, 30 frames per second, no keyframe reduction; leave "In Place"
+   unticked.
+2. Put both files in `models/mixamo/` in the project folder (git ignores `models/`).
+3. Run the bake tool, then open http://127.0.0.1:8018/ and wait for "Saved"
+   (Ctrl-C stops it):
+
+```bash
+python -I scripts/bake_player.py "models/mixamo/Receive Soccerball.fbx" "models/mixamo/Strike Foward Jog.fbx"
+```
+
+It writes `static/models/player.glb` and `static/models/player.json`. Reload JARVIS. Use your
+files' real names in the command (the owner's second download is named "Strike Foward Jog").
+
 ## Notes
 
 Tell JARVIS small facts and preferences to keep: "remember that my favourite food is
