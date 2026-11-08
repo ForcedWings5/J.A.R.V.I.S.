@@ -1,0 +1,154 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Bake the 3D player</title>
+<style>body{margin:0;padding:24px;background:#05060c;color:#d9f4fc;font:15px/1.6 -apple-system,system-ui,sans-serif}pre{color:#8fb6c6}</style>
+</head><body>
+<h1>Bake the 3D player</h1>
+<p>Joins the two Mixamo moves and saves <b>static/models/player.glb</b> and <b>player.json</b> (kept on this Mac only). Served by <code>scripts/bake_player.py</code>.</p>
+<pre id="log">Loading the two files…</pre>
+<script type="module">
+// The joining here is the one the owner approved in the throwaway test (2026-11-08): the
+// receive plays through its touches, blends into the strike at TB over BLEND seconds, the
+// strike turned to face the run-up; everything at PACE times the recorded speed. The result is
+// baked into one animation, so JARVIS only plays it (static/js/sports-player.js).
+import * as THREE from '/vendor/three.module.min.js';
+import { FBXLoader } from '/vendor/FBXLoader.js';
+import { GLTFExporter } from '/vendor/GLTFExporter.js';
+
+const log = text => { document.getElementById('log').textContent += '\n' + text; };
+const PACE = 1.25, TB = 4.2, TS0 = 0, BLEND = 0.4, FPS = 30, R = 0.11;
+
+const loader = new FBXLoader();
+const load = url => new Promise((res, rej) => loader.load(url, res, undefined, rej));
+const [rec, str] = await Promise.all([load('/fbx/receive.fbx'), load('/fbx/strike.fbx')]);
+
+const model = rec, wrapper = new THREE.Group(), scene = new THREE.Scene();
+wrapper.name = 'PlayerRoot';
+const box = new THREE.Box3().setFromObject(model);
+model.scale.multiplyScalar(1.8 / (box.max.y - box.min.y));
+wrapper.add(model); scene.add(wrapper);
+const bone = re => { let b = null; model.traverse(o => { if (!b && o.isBone && re.test(o.name)) b = o; }); return b; };
+const HIPS = bone(/Hips$/), LTOE = bone(/LeftToeBase$/), RTOE = bone(/RightToeBase$/), LUP = bone(/LeftUpLeg$/), RUP = bone(/RightUpLeg$/);
+const clipR = rec.animations[0], clipS = str.animations[0];
+log(`receive ${clipR.duration.toFixed(2)} s, strike ${clipS.duration.toFixed(2)} s`);
+
+// Each clip as recorded: where the hips, toes and hips' line are, every 1/60 s
+function sample(clip) {
+  const m = new THREE.AnimationMixer(model); m.clipAction(clip).play();
+  const out = [], N = Math.ceil(clip.duration * 60), p = new THREE.Vector3();
+  for (let i = 0; i <= N; i++) {
+    const t = Math.min(clip.duration - 1e-3, i / 60); m.setTime(t); model.updateMatrixWorld(true);
+    out.push({ t, hips: HIPS.getWorldPosition(p).clone(), lt: LTOE.getWorldPosition(p).clone(), rt: RTOE.getWorldPosition(p).clone(),
+      side: RUP.getWorldPosition(p).clone().sub(LUP.getWorldPosition(new THREE.Vector3())) });
+  }
+  m.stopAllAction(); m.uncacheRoot(model);
+  return out;
+}
+const SR = sample(clipR), SS = sample(clipS);
+const at = (S, t) => { const i = Math.max(0, Math.min(S.length - 2, Math.floor(t * 60))), u = Math.max(0, Math.min(1, t * 60 - i)), a = S[i], b = S[i + 1];
+  return { hips: a.hips.clone().lerp(b.hips, u), lt: a.lt.clone().lerp(b.lt, u), rt: a.rt.clone().lerp(b.rt, u), side: a.side.clone().lerp(b.side, u) }; };
+const yawOf = side => { const f = new THREE.Vector3(0, 1, 0).cross(side); return Math.atan2(f.x, f.z); };
+
+// The hips' travel is taken out of both clips and given to PlayerRoot instead, so they blend
+function stripRoot(clip) {
+  const tr = clip.tracks.find(k => /Hips\.position$/.test(k.name)); if (!tr) return;
+  const v = tr.values; for (let i = 0; i < v.length; i += 3) { v[i] = v[0]; v[i + 2] = v[2]; }
+}
+stripRoot(clipR); stripRoot(clipS);
+
+// The moments, found in the movement: the first touch where the left foot is highest, the
+// strike where the right toe moves fastest
+let trapT = 0, best = -1;
+for (const s of SR) if (s.t > 0.8 && s.t < 1.5 && s.lt.y > best) { best = s.lt.y; trapT = s.t; }
+let strikeS = 0; best = -1;
+for (let i = 1; i < SS.length; i++) { const s = SS[i]; if (s.t < 0.25 || s.t > 0.6) continue; const d = s.rt.distanceTo(SS[i - 1].rt); if (d > best) { best = d; strikeS = s.t; } }
+const TSTRIKE = TB + strikeS - TS0;
+const turnS = yawOf(at(SR, TB).side) - yawOf(at(SS, TS0).side);
+const pivotR = at(SR, TB).hips.setY(0), pivotS = at(SS, TS0).hips.setY(0);
+const turnY = (v, a) => new THREE.Vector3(v.x * Math.cos(a) + v.z * Math.sin(a), v.y, -v.x * Math.sin(a) + v.z * Math.cos(a));
+const mapS = p => { const d = turnY(p.clone().sub(pivotS).setY(0), turnS); return pivotR.clone().add(d).setY(p.y); };
+const strikeFwd = turnY(at(SS, strikeS + 0.05).hips.sub(at(SS, strikeS - 0.05).hips).setY(0).normalize(), turnS);
+const restPos = mapS(at(SS, strikeS).rt).addScaledVector(strikeFwd, 0.07).setY(R);
+const trapPos = at(SR, trapT).lt;
+const forward = restPos.clone().sub(SR[0].hips).setY(0).normalize();
+const END = TB + clipS.duration - TS0;
+const onFloor = (v, dx = 0, dz = 0) => new THREE.Vector3(v.x + dx, R, v.z + dz);
+// Where the ball is when each foot meets it (recorded time); it rolls between them
+const BALL = [
+  { t: trapT, p: trapPos.clone().add(new THREE.Vector3(0, 0.02, 0.06)) },     // controlled in the air, left foot
+  { t: 1.45, p: onFloor(at(SR, 1.79).lt, -0.08, 0.05) },                     // dropped in front of him
+  { t: 1.85, p: onFloor(at(SR, 1.79).lt, -0.08, 0.05) },                     // left foot drags it across
+  { t: 2.25, p: onFloor(at(SR, 2.25).rt, 0.13, 0) },                         // right foot stops it
+  { t: 2.85, p: onFloor(at(SR, 2.81).rt, 0.06, 0.02) },                      // right sole rolls it back
+  { t: 4.05, p: onFloor(at(SR, 4.06).lt, 0.1, 0.04) },                       // left foot meets it, pushes it on
+  { t: TSTRIKE - 0.03, p: restPos },                                         // waiting for the strike
+];
+log(`first touch ${trapT.toFixed(2)} s, strike ${TSTRIKE.toFixed(2)} s, turned ${(turnS * 180 / Math.PI).toFixed(1)}° (recorded time)`);
+
+// Pose the joined scene at recorded time T
+const mixer = new THREE.AnimationMixer(model);
+const aR = mixer.clipAction(clipR), aS = mixer.clipAction(clipS);
+aR.play(); aS.play();
+function poseAt(T) {
+  const w = THREE.MathUtils.smoothstep(T, TB - BLEND / 2, TB + BLEND / 2);
+  const tR = Math.min(T, clipR.duration - 1e-3), tS = Math.max(0, Math.min(clipS.duration - 1e-3, T - TB + TS0));
+  aR.time = tR; aS.time = tS; aR.setEffectiveWeight(1 - w); aS.setEffectiveWeight(w);
+  mixer.update(0);
+  const want = at(SR, tR).hips.setY(0).lerp(mapS(at(SS, tS).hips).setY(0), w);
+  const yaw = turnS * w;
+  const held = SR[0].hips.clone().setY(0).lerp(SS[0].hips.clone().setY(0), w);
+  wrapper.rotation.set(0, yaw, 0);
+  wrapper.position.copy(want.sub(turnY(held, yaw)));
+  model.updateMatrixWorld(true);
+}
+
+// Bake: every bone's turn, the hips' height, and PlayerRoot's place and turn, FPS times a second
+const bones = []; model.traverse(o => { if (o.isBone) bones.push(o); });
+const times = [], rot = new Map(bones.map(b => [b, []])), hipsPos = [], rootPos = [], rootRot = [];
+for (let i = 0, n = Math.ceil(END * FPS); i <= n; i++) {
+  const T = Math.min(i / FPS, END - 1e-3);
+  poseAt(T);
+  times.push(+(T / PACE).toFixed(4));
+  for (const b of bones) rot.get(b).push(...b.quaternion.toArray());
+  hipsPos.push(...HIPS.position.toArray());
+  rootPos.push(...wrapper.position.toArray());
+  rootRot.push(...wrapper.quaternion.toArray());
+}
+const tracks = bones.map(b => new THREE.QuaternionKeyframeTrack(`${b.name}.quaternion`, times, rot.get(b)));
+tracks.push(new THREE.VectorKeyframeTrack(`${HIPS.name}.position`, times, hipsPos));
+tracks.push(new THREE.VectorKeyframeTrack('PlayerRoot.position', times, rootPos));
+tracks.push(new THREE.QuaternionKeyframeTrack('PlayerRoot.quaternion', times, rootRot));
+const clip = new THREE.AnimationClip('kick', -1, tracks);
+mixer.stopAllAction();
+poseAt(0);
+log(`baked ${times.length} frames, ${clip.duration.toFixed(2)} s at ${PACE}x`);
+
+// Only what JARVIS draws: no eyelashes, no textures (the page's own shaders colour it), no UVs
+const drop = [];
+model.traverse(o => {
+  if (!o.isMesh) return;
+  if (/Eyelashes$/.test(o.name)) { drop.push(o); return; }
+  o.material = new THREE.MeshBasicMaterial({ name: o.name });
+  for (const k of Object.keys(o.geometry.attributes)) if (/^uv/.test(k)) o.geometry.deleteAttribute(k);
+});
+for (const o of drop) o.removeFromParent();
+
+const glb = await new GLTFExporter().parseAsync(scene, { binary: true, animations: [clip] });
+const post = async (name, body, kind) => {
+  const res = await fetch('/save/' + name, { method: 'POST', headers: { 'Content-Type': kind }, body });
+  const text = await res.text();
+  if (!res.ok) throw new Error(text);
+  return text;
+};
+log(await post('player.glb', glb, 'model/gltf-binary') + ` (${(glb.byteLength / 1e6).toFixed(1)} MB)`);
+
+const r4 = v => v.toArray().map(x => +x.toFixed(4));
+const data = {
+  version: 1, pace: PACE, end: +(END / PACE).toFixed(4), strike: +(TSTRIKE / PACE).toFixed(4), ballR: R,
+  incoming: { from: +(Math.max(0, trapT - 0.9) / PACE).toFixed(4), to: +(trapT / PACE).toFixed(4),
+    start: r4(trapPos.clone().add(new THREE.Vector3(0, 6, 0)).addScaledVector(forward, 3)) },
+  ball: BALL.map(b => ({ t: +(b.t / PACE).toFixed(4), p: r4(b.p) })),
+  camera: { target: r4(SR[0].hips.clone().lerp(restPos, 0.6).setY(1.0)), forward: r4(forward) },
+};
+log(await post('player.json', JSON.stringify(data, null, 1), 'application/json'));
+log('Saved. You can stop the tool (Ctrl-C).');
+</script></body></html>

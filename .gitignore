@@ -34,3 +34,6 @@ jarvis-restored.tmp
 
 # Club badges: the clubs own them, so they stay on this Mac (served to the page, never pushed)
 static/img/crests/
+
+# The 3D player's files, made on this Mac from Mixamo downloads (licence: never passed on)
+static/models/
