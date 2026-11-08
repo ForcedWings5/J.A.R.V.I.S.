@@ -303,7 +303,9 @@ fb.retry.addEventListener('click', () => { if (footballWanted) { footballLoading
 const sportsFootball = {
   enterPicker() {
     loadCoastlines().then(lines => sportsGlobe.setLines(lines));   // fetched once, shared
-    if (window.sportsPlayer) window.sportsPlayer.load();           // the 3D player, once, in the background
+    // The 3D player, once, in the background, after the football's flight into the globe (0.7 s)
+    // so reading it never makes that flight stutter. A click before then plays the drawn kick.
+    setTimeout(() => { if (window.sportsPlayer) window.sportsPlayer.load(); }, 800);
     sportsPickerOn = true;
     sportsGlobe.jumpTo(SPORTS_EUROPE.lat, SPORTS_EUROPE.lon, SPORTS_EUROPE.zoom);
     sportsGlobe.start();

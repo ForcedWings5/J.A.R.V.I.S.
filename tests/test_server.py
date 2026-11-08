@@ -826,7 +826,10 @@ def test_the_3d_player_loads_last_as_a_module_with_its_canvas():
 
 
 def test_the_3d_player_uses_only_our_files():
+    """three.js is read only when the globe first opens, not at every page start (final review)."""
     source = (ROOT / "static" / "js" / "sports-player.js").read_text()
-    assert IMPORT_LINE.findall(source) == ["./vendor/three.module.min.js", "./vendor/GLTFLoader.js"]
+    assert IMPORT_LINE.findall(source) == []
+    assert re.findall(r"\bimport\(\s*'([^']+)'\s*\)", source) == [
+        "./vendor/three.module.min.js", "./vendor/GLTFLoader.js"]
     assert "/static/models/player.glb" in source and "/static/models/player.json" in source
     assert "http" not in source

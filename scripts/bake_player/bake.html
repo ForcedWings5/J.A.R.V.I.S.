@@ -17,6 +17,8 @@ import { GLTFExporter } from '/vendor/GLTFExporter.js';
 const log = text => { document.getElementById('log').textContent += '\n' + text; };
 const PACE = 1.25, TB = 4.2, TS0 = 0, BLEND = 0.4, FPS = 30, R = 0.11;
 
+async function bake() {
+
 const loader = new FBXLoader();
 const load = url => new Promise((res, rej) => loader.load(url, res, undefined, rej));
 const [rec, str] = await Promise.all([load('/fbx/receive.fbx'), load('/fbx/strike.fbx')]);
@@ -136,15 +138,6 @@ model.traverse(o => {
 });
 for (const o of drop) o.removeFromParent();
 
-const glb = await new GLTFExporter().parseAsync(scene, { binary: true, animations: [clip] });
-const post = async (name, body, kind) => {
-  const res = await fetch('/save/' + name, { method: 'POST', headers: { 'Content-Type': kind }, body });
-  const text = await res.text();
-  if (!res.ok) throw new Error(text);
-  return text;
-};
-log(await post('player.glb', glb, 'model/gltf-binary') + ` (${(glb.byteLength / 1e6).toFixed(1)} MB)`);
-
 const r4 = v => v.toArray().map(x => +x.toFixed(4));
 const data = {
   version: 1, pace: PACE, end: +(END / PACE).toFixed(4), strike: +(TSTRIKE / PACE).toFixed(4), ballR: R,
@@ -153,6 +146,20 @@ const data = {
   ball: BALL.map(b => ({ t: +(b.t / PACE).toFixed(4), p: r4(b.p) })),
   camera: { target: r4(SR[0].hips.clone().lerp(restPos, 0.6).setY(1.0)), forward: r4(forward) },
 };
-log(await post('player.json', JSON.stringify(data, null, 1), 'application/json'));
+const post = async (path, body, kind) => {
+  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': kind }, body });
+  const text = await res.text();
+  if (!res.ok) throw new Error(text);
+  return text;
+};
+// Checked before anything is saved, so the two files always belong together
+const json = JSON.stringify(data, null, 1);
+log(await post('/check/player.json', json, 'application/json'));
+const glb = await new GLTFExporter().parseAsync(scene, { binary: true, animations: [clip] });
+log(await post('/save/player.glb', glb, 'model/gltf-binary') + ` (${(glb.byteLength / 1e6).toFixed(1)} MB)`);
+log(await post('/save/player.json', json, 'application/json'));
 log('Saved. You can stop the tool (Ctrl-C).');
+}
+
+try { await bake(); } catch (e) { log('Stopped: ' + ((e && e.message) || e) + ' (nothing more was saved)'); }
 </script></body></html>

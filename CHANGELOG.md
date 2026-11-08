@@ -1432,13 +1432,13 @@ Picking a league on the globe now plays a real person's movement. A downloaded 3
   - **What it checks:** it saves only those two files, with size limits, and checks the JSON first. It serves nothing outside its own folders.
   - **Never in git:** `static/models/` is ignored, because Mixamo's licence does not allow passing the files on. README says how to make them again.
 - **`sports-player.js`** (an ES module, loaded last) loads the files the first time the globe opens, in the background.
-  - **The look:** it draws the player with the test's hologram and shirt shaders on its own WebGL canvas, and the ball inside the 3D scene until the strike, so the player hides it when it is behind him. From the strike on, it uses the same `drawFlight` as the code-drawn kick (moved out of `drawKick` for this).
+  - **The look:** it draws the player with the test's hologram and shirt shaders on its own WebGL canvas, and the ball inside the 3D scene until the strike, so the shirt hides it when it is behind him (the see-through hologram parts do not, by design). From the strike on, it uses the same `drawFlight` as the code-drawn kick (moved out of `drawKick` for this).
   - **The same behaviour:** it offers the same `{ done, skip(), cancel() }`, so skipping, cancelling, the safety timeout and Reduce motion behave exactly as before.
 - **The fallback:** a click before the player is ready, missing or broken files, no WebGL, or a lost 3D canvas: the code-drawn kick plays, with one console warning.
 - **Found and fixed while building:**
   - **Mixamo's file holds copies of some bones for the clothes:** 128 bone objects for 65 names. Baking every bone gave tracks with the same name that overwrote the real bones, so in JARVIS the clothes and feet were wrong. The bake now records each name once.
   - **The camera** was retuned for the globe's square area. The test's values framed a whole window, and in the picker they put the player small, over the pins.
-- **Tests:** 846, up from 819:
+- **Tests:** 850, up from 819:
   - the vendor fingerprints and imports;
   - the bake tool's checks (good and 18 bad `player.json` files, the two allowed names, paths outside its folders refused, `127.0.0.1` only);
   - `static/models/` ignored;
@@ -1456,6 +1456,21 @@ Picking a league on the globe now plays a real person's movement. A downloaded 3
   - no policy violations.
 - **Not checked:** the motion at full frame rate (the pane was hidden), and Safari.
 - **The two demo-only helpers** on `window.sportsPlayer`: `_loseContext()` and `_still(T, …)`, kept for such checks.
+- **Final review** (a fresh reviewer of the whole branch): nothing Critical or Important, and the vendored files differ from three.js 0.170.0 only in their import lines. Four of its minor findings were fixed, each shown failing first:
+  - **The first kick of each session stuttered:** its first frame took 137 ms while the 3D shaders were prepared, skipping the start of the run. Loading now prepares the shaders and draws one hidden practice frame: 12.8 ms.
+  - **three.js was read at every page start,** even without opening Sports. It is now read when the globe first opens, and only after the football's 0.7 s flight into it, so the flight never stutters (pinned by a test; checked: nothing from `vendor/` or `models/` at page start or 0.4 s after opening the globe).
+  - **The bake tool accepted saves from any website** while it ran. It now follows JARVIS's own rule: requests under another host name, or a POST from another site's page, get 403 (pinned by tests).
+  - **The bake page failed silently,** and a refused `player.json` could leave a new `player.glb` beside an old one. The page now checks the JSON first (a new `/check/player.json`), then saves both, and shows "Stopped: …" on any error. (Shown by accident: a bake run against an old server stopped with that message and saved nothing.)
+  - **Left for later:**
+    - the bake server could save a cut-off upload, and prints a traceback for a few odd inputs (nothing is written);
+    - the two `player.json` checks differ on `version: true`, and both accept a straight-up camera direction;
+    - the 3D player is loaded even with Reduce motion on (never shown);
+    - the flight's first point uses the previous frame's camera if the first frame drawn is after the strike;
+    - `player.json`'s `pace` is not read;
+    - the bake server still serves an unused `/sports-objects.js`;
+    - below a square globe area, the run-up can leave the left edge;
+    - the bake tool's own three.js files are not pinned by fingerprint;
+    - no test for a symlink out of the bake tool's folders.
 
 ---
 
@@ -1490,7 +1505,7 @@ Picking a league on the globe now plays a real person's movement. A downloaded 3
 | Sports, stage 2: the football server (section 60) | Done: 806 tests; checked live with the owner's key (team ids, reply shapes, Serie A and Premier League pages); no page or tools yet |
 | Sports, stage 3: the page (section 61) | Done: 816 tests; evals 237/240 (prompt `825d45cfb641`); checked in a demo and live; not yet in Safari or seen in motion; no football tools yet |
 | Sports, stage 4: the animations (section 62) | Done: 819 tests; checked in a demo (the kick's timing with a timer standing in for frames, its look from stills); not yet seen at full frame rate or in Safari; no prompt change |
-| Sports, stage 4b: the 3D player (section 63) | Done: 846 tests; three.js 0.170.0 pinned; the model files on this Mac only; checked in a demo with a timer standing in for frames; not yet seen at full frame rate or in Safari |
+| Sports, stage 4b: the 3D player (section 63) | Done: 850 tests; three.js 0.170.0 pinned; the model files on this Mac only; checked in a demo with a timer standing in for frames; not yet seen at full frame rate or in Safari |
 | Other websites (Origin check) | Done: attack shown and then blocked in the real browser, dashboard unaffected, 406 tests (section 36) |
 | Voice input, voice output, voice mode switch | Tested and working |
 | Calendar views (compact agenda, year/month/week/day) | Layout confirmed good; all four views checked in a demo, on Home and in Work (section 51) |

@@ -9,8 +9,8 @@
 // An ES module, loaded last: it gives the classic scripts window.sportsPlayer =
 // { ready, load(), play(kickCanvas, target), checkData(data) }. play() returns the same
 // { done, skip(), cancel() } as playKick, so space-sports.js holds either the same way.
-import * as THREE from './vendor/three.module.min.js';
-import { GLTFLoader } from './vendor/GLTFLoader.js';
+// three.js itself is read only when the globe first opens (load()), not at every page start
+let THREE = null, GLTFLoader = null;
 
 const PLAYER_FILES = { model: '/static/models/player.glb', data: '/static/models/player.json' };
 const PLAYER_PACE = 1.25;      // the owner's choice; the bake already plays at this speed
@@ -125,6 +125,8 @@ const holoMaterials = [];
 let loading = null;
 
 async function build() {
+  THREE = await import('./vendor/three.module.min.js');
+  ({ GLTFLoader } = await import('./vendor/GLTFLoader.js'));
   const res = await fetch(PLAYER_FILES.data);
   if (!res.ok) throw new Error('player.json ' + res.status);
   data = await res.json();
@@ -181,6 +183,16 @@ async function build() {
 
   mixer = new THREE.AnimationMixer(gltf.scene);
   mixer.clipAction(clip).play();
+  // Prepare every shader now, while nothing moves: done on the first kick's first frame, it
+  // took 137 ms there and skipped the start of the run (final review)
+  // and draw one practice frame (hidden), so the textures are sent to the graphics card and
+  // the animation is bound before the first kick, not during it
+  placeCamera(canvas.clientWidth || 600, canvas.clientHeight || 600);
+  renderer.compile(scene, camera);
+  mixer.setTime(0);
+  drawSportAt(ballCanvas.getContext('2d'), 'football', 0, 64, 64, 50);
+  ballTexture.needsUpdate = true;
+  renderer.render(scene, camera);
   player.ready = true;
 }
 

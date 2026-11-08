@@ -4,7 +4,10 @@ It runs only on the owner's Mac, by hand, to turn the Mixamo downloads into
 static/models/player.glb and player.json (Sports stage 4b). These tests pin its limits."""
 
 import copy
+import http.client
 import importlib.util
+import json
+import threading
 from pathlib import Path
 
 import pytest
@@ -82,3 +85,56 @@ def test_it_listens_on_this_mac_only():
 def test_the_model_files_stay_on_this_mac():
     """Mixamo's licence does not allow passing the files on: never in git."""
     assert "static/models/" in (ROOT / ".gitignore").read_text().splitlines()
+
+
+@pytest.fixture
+def server(tmp_path, monkeypatch):
+    """The bake server on a free port, saving into tmp_path (final review: M1, M2)."""
+    monkeypatch.setattr(bake, "OUT_DIR", tmp_path)
+    fbx = tmp_path / "a.fbx"
+    fbx.write_bytes(b"x")
+    srv = bake.ThreadingHTTPServer(("127.0.0.1", 0), bake.make_handler(fbx, fbx))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield srv.server_address[1], tmp_path
+    srv.shutdown()
+
+
+def _post(port, path, body, headers):
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+    conn.request("POST", path, body=body, headers=headers)
+    res = conn.getresponse()
+    return res.status, res.read().decode()
+
+
+def test_other_websites_cannot_save(server):
+    """As JARVIS's own rule: a POST from another site's page gets 403 before any work."""
+    port, out = server
+    status, _ = _post(port, "/save/player.glb", b"glTF", {"Origin": "http://evil.example"})
+    assert status == 403 and not (out / "player.glb").exists()
+    status, _ = _post(port, "/save/player.glb", b"glTF", {"Origin": f"http://127.0.0.1:{port}"})
+    assert status == 200 and (out / "player.glb").read_bytes() == b"glTF"
+
+
+def test_another_host_name_is_refused(server):
+    """A DNS-rebinding page reaches 127.0.0.1 under its own name: refused."""
+    port, _ = server
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+    conn.request("GET", "/", headers={"Host": "evil.example"})
+    assert conn.getresponse().status == 403
+
+
+def test_the_json_can_be_checked_without_saving(server):
+    """The page checks player.json before saving either file, so a refused one never leaves a
+    new player.glb beside an old player.json."""
+    port, out = server
+    origin = {"Origin": f"http://127.0.0.1:{port}"}
+    status, text = _post(port, "/check/player.json", json.dumps({"version": 2}).encode(), origin)
+    assert status == 400 and "version" in text
+    assert _post(port, "/check/player.json", json.dumps(GOOD).encode(), origin)[0] == 200
+    assert list(out.iterdir()) == [out / "a.fbx"]
+
+
+def test_the_bake_page_checks_first_and_shows_errors():
+    page = (ROOT / "scripts" / "bake_player" / "bake.html").read_text()
+    assert page.index("/check/player.json") < page.index("/save/player.glb") < page.index("/save/player.json")
+    assert "catch (e)" in page and "Stopped:" in page

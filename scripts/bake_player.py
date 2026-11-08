@@ -106,7 +106,18 @@ def make_handler(receive: Path, strike: Path):
             self.end_headers()
             self.wfile.write(body)
 
+        # JARVIS's own rule (server.py): only this address, and no other website's page. A
+        # page elsewhere can still send a request to 127.0.0.1, or reach it under its own name
+        # (DNS rebinding); both are refused before any work (final review)
+        def _allowed(self) -> bool:
+            port = self.server.server_address[1]
+            hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+            origin = self.headers.get("Origin")
+            return self.headers.get("Host") in hosts and (origin is None or origin in {"http://" + h for h in hosts})
+
         def do_GET(self):
+            if not self._allowed():
+                return self._reply(403, b"only this tool's own page")
             path = unquote(urlsplit(self.path).path)
             if path in fixed:
                 file = fixed[path]
@@ -119,8 +130,13 @@ def make_handler(receive: Path, strike: Path):
             self._reply(200, file.read_bytes(), TYPES.get(file.suffix, "application/octet-stream"))
 
         def do_POST(self):
+            if not self._allowed():
+                return self._reply(403, b"only this tool's own page")
             path = unquote(urlsplit(self.path).path)
-            name = path[len("/save/"):] if path.startswith("/save/") else ""
+            # /check/player.json checks without saving: the page asks first, so a refused JSON
+            # never leaves a new player.glb beside an old player.json (final review)
+            only_check = path == "/check/player.json"
+            name = "player.json" if only_check else path[len("/save/"):] if path.startswith("/save/") else ""
             target = save_path(name, OUT_DIR)
             if target is None:
                 return self._reply(404, b"only player.glb and player.json can be saved")
@@ -138,6 +154,8 @@ def make_handler(receive: Path, strike: Path):
                     problem = "not JSON"
                 if problem:
                     return self._reply(400, f"player.json refused: {problem}".encode())
+                if only_check:
+                    return self._reply(200, b"player.json is fine")
             OUT_DIR.mkdir(parents=True, exist_ok=True)
             part = target.with_name(target.name + ".part")
             part.write_bytes(body)
