@@ -31,3 +31,6 @@ logs/
 # A restored backup is personal data too
 jarvis-restored.db
 jarvis-restored.tmp
+
+# Club badges: the clubs own them, so they stay on this Mac (served to the page, never pushed)
+static/img/crests/

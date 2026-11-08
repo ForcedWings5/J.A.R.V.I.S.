@@ -748,3 +748,12 @@ def test_the_page_knows_the_same_leagues_as_the_server():
     found = re.findall(r"slug: '([^']+)', name: '([^']+)', country: '([^']+)', lat: ([-\d.]+), lon: ([-\d.]+)", source)
     assert found == [(slug, lg["name"], lg["country"], str(lg["lat"]), str(lg["lon"]))
                      for slug, lg in config.FOOTBALL_LEAGUES.items()]
+
+
+def test_the_club_badges_stay_on_this_mac():
+    """The clubs own their badges: the files are served to the page but never pushed, and the
+    page names no badge file itself, so a Mac or CI without them is fine (the page hides it)."""
+    assert "static/img/crests/" in (ROOT / ".gitignore").read_text().splitlines()
+    page = (ROOT / "static" / "index.html").read_text()
+    crest = re.search(r"<img [^>]*id=\"sp-crest\"[^>]*>", page)
+    assert crest and " src=" not in crest.group(0) and 'alt=""' in crest.group(0)

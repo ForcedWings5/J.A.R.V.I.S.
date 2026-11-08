@@ -117,7 +117,7 @@ const SPORTS_THEMES = { 'serie-a': 'roma', 'premier-league': 'newcastle' };
 
 const fbEl = id => document.getElementById(id);
 const fb = {
-  title: fbEl('sp-title'), subtitle: fbEl('sp-subtitle'), status: fbEl('sp-status'), retry: fbEl('sp-retry'),
+  title: fbEl('sp-title'), subtitle: fbEl('sp-subtitle'), crest: fbEl('sp-crest'), status: fbEl('sp-status'), retry: fbEl('sp-retry'),
   next: fbEl('sp-next'), form: fbEl('sp-form'), table: fbEl('sp-table'),
   results: fbEl('sp-results'), resultsTitle: fbEl('sp-results-title'),
   upcoming: fbEl('sp-upcoming'), upcomingTitle: fbEl('sp-upcoming-title'),
@@ -161,6 +161,15 @@ function footballLoading(slug) {
   for (const p of fb.teamPanels) p.hidden = !themed;
   if (themed) sportsSection.dataset.theme = SPORTS_THEMES[slug];
   else delete sportsSection.dataset.theme;
+  footballCrest(themed ? SPORTS_THEMES[slug] : null);
+}
+
+// The followed club's badge, from a file the owner keeps on this Mac (never in git). If the
+// file is not there, the badge is simply not shown.
+function footballCrest(club) {
+  if (!club) { fb.crest.hidden = true; fb.crest.removeAttribute('src'); return; }
+  fb.crest.src = `/static/img/crests/${club}.png`;
+  fb.crest.hidden = false;
 }
 
 async function footballAsk() {
@@ -285,6 +294,7 @@ function footballRedrawClock() {
   fb.updated.textContent = footballUpdatedText(footballPage.updated, footballPage.earlier, now);
 }
 
+fb.crest.addEventListener('error', () => { fb.crest.hidden = true; });
 fb.retry.addEventListener('click', () => { if (footballWanted) { footballLoading(footballWanted); footballAsk(); } });
 
 const sportsFootball = {

@@ -61,6 +61,10 @@ body.reduce .sp-hub, body.reduce .sp-picker, body.reduce .sp-league { animation:
 .sp-league { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:16px; }
 .sp-league > * { flex:none; }      /* the page scrolls; its parts keep their height */
 .sp-head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.sp-head-text { flex:1; min-width:0; }
+/* The club's badge: the files are wide pictures with the badge in the middle, so show the middle square */
+.sp-crest { width:60px; height:60px; flex:none; object-fit:cover; filter:drop-shadow(0 2px 8px rgba(0,0,0,.45)); }
+.sp-crest[hidden] { display:none; }
 .sp-title { font-size:22px; font-weight:600; color:var(--team-title, var(--accent)); }
 .sp-status { display:flex; align-items:center; gap:10px; font-size:14px; }
 #sp-retry { padding:7px 14px; font-size:12px; }

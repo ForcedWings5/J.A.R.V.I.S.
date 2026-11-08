@@ -1316,6 +1316,11 @@ Sports is now space 4 on the dashboard. It uses plain fades; the floating object
   - **The basketball** has one winding seam and two straight seams at right angles, after Paul Bourke's "Geometry of sports balls". The first try, with two straight seams and two rings, looked like a globe.
   - **The NFL ball** has its seams, end stripes and laces, and **the baseball** its winding seam with stitches.
   - **F1 is a low-poly car**, the owner's choice over a tyre, since the car fits the later F1 stage.
+- **Club badges.** Roma's and Newcastle's badges show beside the team's name on their pages.
+  - **Why only locally:** the clubs own the badges, so the owner keeps the files on this Mac (`static/img/crests/`). Git ignores that folder, so they never reach GitHub.
+  - **How they load:** JARVIS serves them like its other files, so the security policy is unchanged and no other site is contacted. The page names no badge file itself, and a missing file just hides the badge (checked), so CI and other Macs are fine without them.
+  - **Checked:** both are real PNGs with see-through backgrounds. They are wide pictures, so the page shows their middle square.
+  - **Noted to the owner:** the Roma file is the club's older crest (the "ASR" shield); the club changed it in 2013.
 - **The league picker:** a second globe (Weather's code), framed on Europe, with a pin on each of the five countries ("Italy · Serie A") and the same leagues in a list beside it. The coastlines are now fetched once and shared by both globes.
 - **The league page** (`POST /sports/league` from stage 2):
   - every league: the table, the latest round's results and the next round;
@@ -1336,7 +1341,7 @@ Sports is now space 4 on the dashboard. It uses plain fades; the floating object
   - **Before:** 228/231, prompt `0a1a37f7968e` (section 58; the hash was checked unchanged).
   - **After:** 237/240, prompt `825d45cfb641`. The two new cases ("Open sports." switches; "I played football with friends yesterday." does not) passed every run.
   - **Misses, one run in three each:** `delete_repeating_no_date_no_false_card` (the usual one), `space_switch_and_answer` (then 5 of 5), and `ask_until_month`. That one passed 7 of 10 more runs, and 7 of 10 with the old prompt too, so it was already flaky and is not this change. It sometimes adds the event "until 31 December" instead of asking which day.
-- **Tests:** 815, up from 806. Python pins what it can: the page's element ids, the script order, the five sports, and the league list matching `config.py`. There is no JavaScript test runner (the owner's choice), so the rest was checked in a demo.
+- **Tests:** 816, up from 806. Python pins what it can: the page's element ids, the script order, the five sports, and the league list matching `config.py`. There is no JavaScript test runner (the owner's choice), so the rest was checked in a demo.
 - **Checked in a demo** (made-up data, then live with the owner's key, about 7 requests):
   - every wording rule;
   - both themes, and La Liga's plain page with empty rounds;
@@ -1394,7 +1399,7 @@ Sports is now space 4 on the dashboard. It uses plain fades; the floating object
 | Weather, stage 4: asking JARVIS (section 58) | Done: evals 228/231 (prompt `0a1a37f7968e`), plus a later-in-the-day case 3/3; checked in a demo and live; not yet in Safari or by voice |
 | Sports, stage 1: one shared door (section 59) | Done: 728 tests; Weather checked live through the new door; nothing fetched from football-data.org yet |
 | Sports, stage 2: the football server (section 60) | Done: 806 tests; checked live with the owner's key (team ids, reply shapes, Serie A and Premier League pages); no page or tools yet |
-| Sports, stage 3: the page (section 61) | Done: 815 tests; evals 237/240 (prompt `825d45cfb641`); checked in a demo and live; not yet in Safari or seen in motion; no football tools yet |
+| Sports, stage 3: the page (section 61) | Done: 816 tests; evals 237/240 (prompt `825d45cfb641`); checked in a demo and live; not yet in Safari or seen in motion; no football tools yet |
 | Other websites (Origin check) | Done: attack shown and then blocked in the real browser, dashboard unaffected, 406 tests (section 36) |
 | Voice input, voice output, voice mode switch | Tested and working |
 | Calendar views (compact agenda, year/month/week/day) | Layout confirmed good; all four views checked in a demo, on Home and in Work (section 51) |
