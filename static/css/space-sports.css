@@ -5,17 +5,17 @@
 #space-sports { position:relative; }
 #space-sports .panel { cursor:default; }
 
-/* Only the current level shows; it fades in (shorter with Reduce motion: a fade, no motion) */
+/* Only the current level shows; it fades in. With Reduce motion nothing animates at all
+   (jarvis.css turns every animation off), so the levels simply switch. */
 #space-sports:not([data-level="hub"]) .sp-hub,
 #space-sports:not([data-level="hub"]) .sp-note,
 #space-sports:not([data-level="football"]) .sp-picker,
 #space-sports:not([data-level="league"]) .sp-league { display:none; }
 .sp-hub, .sp-picker, .sp-league { animation:sp-in .35s ease; }
 @keyframes sp-in { from { opacity:0; } to { opacity:1; } }
-body.reduce .sp-hub, body.reduce .sp-picker, body.reduce .sp-league { animation:sp-in .2s ease; }
-body.reduce .sp-object { animation:none; }
+body.reduce .sp-hub, body.reduce .sp-picker, body.reduce .sp-league, body.reduce .sp-object { animation:none; }
 @media (prefers-reduced-motion: reduce) {
-  .sp-hub, .sp-picker, .sp-league { animation:sp-in .2s ease; }
+  .sp-hub, .sp-picker, .sp-league { animation:none; }
   #space-sports .sp-object { animation:none; }    /* the id outweighs the drift's rules below */
 }
 
@@ -51,8 +51,12 @@ body.reduce .sp-object { animation:none; }
   50% { transform:translate(-3px, -12px) rotate(1.5deg); }
   75% { transform:translate(-6px, -4px) rotate(2.5deg); }
 }
-/* The football is picked (space-sports.js): the others fade */
+/* The football is picked (space-sports.js): the others fade, a copy of it flies (.sp-flyer)
+   while its own canvas is hidden, and the picker is held clear until the copy arrives */
 .sp-picking .sp-object:not(.sp-chosen) { opacity:0; transition:opacity .2s ease, scale .2s ease; }
+.sp-chosen .sp-canvas { visibility:hidden; }
+.sp-flyer { position:fixed; z-index:40; pointer-events:none; display:block; }
+.sp-arriving .sp-picker { opacity:0; animation:none; }
 .sp-canvas { width:96px; height:96px; display:block; }      /* drawn by sports-objects.js */
 .sp-object:not([data-sport="football"]) .sp-canvas { opacity:.75; }
 .sp-name { font-size:13px; letter-spacing:.5px; }
