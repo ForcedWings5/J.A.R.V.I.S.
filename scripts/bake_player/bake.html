@@ -101,8 +101,12 @@ function poseAt(T) {
   model.updateMatrixWorld(true);
 }
 
-// Bake: every bone's turn, the hips' height, and PlayerRoot's place and turn, FPS times a second
-const bones = []; model.traverse(o => { if (o.isBone) bones.push(o); });
+// Bake: every bone's turn, the hips' height, and PlayerRoot's place and turn, FPS times a second.
+// Each name once: Mixamo's file holds copies of some bones for the clothes (128 bones, 65
+// names), each a child of the real bone with its name, so they follow it. Baking the copies too
+// gives tracks with the same name that overwrite the real bone's.
+const bones = [], seen = new Set();
+model.traverse(o => { if (o.isBone && !seen.has(o.name)) { seen.add(o.name); bones.push(o); } });
 const times = [], rot = new Map(bones.map(b => [b, []])), hipsPos = [], rootPos = [], rootRot = [];
 for (let i = 0, n = Math.ceil(END * FPS); i <= n; i++) {
   const T = Math.min(i / FPS, END - 1e-3);
