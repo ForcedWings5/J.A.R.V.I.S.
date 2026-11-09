@@ -115,6 +115,7 @@ FOOTBALL_NAME_MAX = 40                    # characters kept of each team or comp
 FOOTBALL_WINDOW_DAYS = 10                 # a league's matches: today, give or take 10 days
 FOOTBALL_TEAM_WINDOW_DAYS = 60            # a followed team's: today, give or take 60 days
 FOOTBALL_ROUND_MIN_MATCHES = 3            # a matchday with fewer is a moved game, not the round
+FOOTBALL_TOP_ROWS = 4                     # the top of a table JARVIS is told (get_league)
 
 # The one door to the internet (outside.py), shared by Weather and Football
 OUTSIDE_TIMEOUT_SECONDS = 5

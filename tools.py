@@ -43,6 +43,14 @@ class ShowSpace:
     reply: str                  # the tool result the model sees
 
 
+@dataclass
+class ShowLeague:
+    """Returned by show_league: only the view changes. The page opens Sports at the globe and
+    plays the kick to this league, as if its country were clicked."""
+    league: str                 # a slug of config.FOOTBALL_LEAGUES
+    reply: str                  # the tool result the model sees
+
+
 def tool(description: str, **properties):
     def register(func):
         params = inspect.signature(func).parameters

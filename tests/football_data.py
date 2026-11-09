@@ -171,3 +171,42 @@ def newcastle_replies():
     """The replies for the Premier League page on 2030-01-07."""
     return {"/competitions/PL/standings": PL_TABLE, "/competitions/PL/matches": PL_ROUNDS,
             "/teams/67/matches": matches(*NEWCASTLE_SEASON)}
+
+
+# The other three leagues on Monday 2030-01-07, small but whole, so the evals can ask about any
+# of the five (evals/__main__.py)
+ATLETICO = team(78, "Club Atlético de Madrid", "Atlético")
+SEVILLA = team(559, "Sevilla FC", "Sevilla")
+PD_ROUNDS = matches(
+    match(701, "2030-01-04T20:00:00Z", "FINISHED", REAL_MADRID, SEVILLA, (3, 1), 19, "PD", "Primera Division"),
+    match(702, "2030-01-05T20:00:00Z", "FINISHED", BARCELONA, ATLETICO, (1, 1), 19, "PD", "Primera Division"),
+    match(703, "2030-01-11T20:00:00Z", "TIMED", ATLETICO, REAL_MADRID, None, 20, "PD", "Primera Division"),
+    match(704, "2030-01-12T20:00:00Z", "TIMED", SEVILLA, BARCELONA, None, 20, "PD", "Primera Division"))
+DORTMUND = team(4, "Borussia Dortmund", "Dortmund")
+LEVERKUSEN = team(3, "Bayer 04 Leverkusen", "Leverkusen")
+BL1_TABLE = standings(row(1, BAYERN, 16, 12, 3, 1, 30, 39), row(2, LEVERKUSEN, 16, 11, 3, 2, 18, 36),
+                      row(3, DORTMUND, 16, 9, 4, 3, 12, 31))
+BL1_ROUNDS = matches(
+    match(801, "2029-12-21T19:30:00Z", "FINISHED", DORTMUND, BAYERN, (1, 2), 16, "BL1", "Bundesliga"),
+    match(802, "2030-01-11T14:30:00Z", "TIMED", BAYERN, LEVERKUSEN, None, 17, "BL1", "Bundesliga"))
+PSG = team(524, "Paris Saint-Germain FC", "PSG")
+MARSEILLE = team(516, "Olympique de Marseille", "Marseille")
+FL1_TABLE = standings(row(1, PSG, 17, 13, 3, 1, 29, 42), row(2, MARSEILLE, 17, 10, 4, 3, 14, 34))
+FL1_ROUNDS = matches(
+    match(901, "2030-01-04T20:00:00Z", "FINISHED", MARSEILLE, PSG, (0, 0), 17, "FL1", "Ligue 1"),
+    match(902, "2030-01-11T20:00:00Z", "TIMED", PSG, MARSEILLE, None, 18, "FL1", "Ligue 1"))
+
+# Every football address answered, for the evals: Roma has no Champions League game here, so
+# the CL table is there only to be complete
+ALL_REPLIES = {
+    **serie_a_replies(), **newcastle_replies(),
+    "/competitions/PD/standings": PD_TABLE, "/competitions/PD/matches": PD_ROUNDS,
+    "/competitions/BL1/standings": BL1_TABLE, "/competitions/BL1/matches": BL1_ROUNDS,
+    "/competitions/FL1/standings": FL1_TABLE, "/competitions/FL1/matches": FL1_ROUNDS,
+}
+
+
+def canned_fetch(address: str) -> bytes:
+    """The made-up reply for any football address, as outside._fetch would return it."""
+    path = address.split("/v4", 1)[1].split("?", 1)[0]
+    return json.dumps(ALL_REPLIES[path]).encode()

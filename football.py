@@ -3,7 +3,8 @@
 Every request goes through the shared door (outside.py) with the key in its header. Replies are
 outside data: every value is read through outside.num, text and obj, names are cleaned, and
 everything the page or the model sees is worked out here, never by the model. JARVIS's tools
-come in a later stage. Spec: docs/specs/2026-11-07-sports-space.md.
+come last: the model picks a league or a team from fixed names, and hears facts written here.
+Spec: docs/specs/2026-11-07-sports-space.md.
 """
 import os
 import re
@@ -14,6 +15,7 @@ from time import monotonic   # its own name, so tests can move the cache's clock
 
 import config
 import outside
+from tools import ShowLeague, tool
 
 _KEY_NAME = "FOOTBALL_DATA_KEY"
 _KEY_SHAPE = re.compile(r"[A-Za-z0-9]{10,64}", re.ASCII)
@@ -388,3 +390,170 @@ def league_page(slug: str) -> dict:
         "earlier": min(earlier).strftime("%H:%M") if earlier else None,
         "credit": CREDIT,
     }
+
+
+# ---------- JARVIS's tools: the model names a league or a team; code writes the facts ----------
+
+# What each kind of failure tells the model (spec, exact wording)
+TOOL_MESSAGES = {
+    "no_key": "Error: football needs a free key. The owner can add one (README).",
+    "refused": "Error: the football data key was refused.",
+    "busy": "Error: too many football requests just now. Try again in a minute.",
+    "unreachable": "Error: couldn't reach the football data.",
+}
+_RESULT_WORDS = {"W": "a win", "D": "a draw", "L": "a loss"}
+_FORM_WORDS = {"W": "won", "D": "drew", "L": "lost"}
+
+
+def _slug(value) -> str:
+    """' Serie A ' -> 'serie-a': the shape every slug has, so a name works as well as a slug."""
+    return re.sub(r"[\s_]+", "-", str(value).strip().lower())
+
+
+def league_slug(value) -> str | None:
+    slug = _slug(value)
+    return slug if slug in config.FOOTBALL_LEAGUES else None
+
+
+def team_slug(value) -> str | None:
+    slug = _slug(value)
+    return slug if slug in config.FOOTBALL_TEAMS else None
+
+
+def _score(m: dict) -> str:
+    """'Inter 2 Roma 1', or 'Inter v Roma' when there is no score."""
+    if m["score"] is None:
+        return f"{m['home']['name']} v {m['away']['name']}"
+    return f"{m['home']['name']} {m['score']['home']} {m['away']['name']} {m['score']['away']}"
+
+
+def _coming(m: dict) -> str:
+    """A match still to be played, or being played, in a round."""
+    if m["status"] == "live":
+        return f"{_score(m)}, live now (free scores arrive late)"
+    fixture = f"{m['home']['name']} v {m['away']['name']} on {m['day']}"
+    return f"{fixture} at {m['time']}" if m["status"] == "upcoming" else f"{fixture}, {m['status']}"
+
+
+def _as_of(page: dict) -> str:
+    if not page["earlier"]:
+        return ""
+    return f"As of {page['earlier']} (an earlier copy: fresh data couldn't be fetched just now). "
+
+
+def league_facts(page: dict) -> str:
+    """What JARVIS is told about a league: written from league_page's values, nothing else."""
+    name, table, team = page["league"]["name"], page["table"], page["team"]
+    parts = []
+    if not page["season_started"] or not table:
+        parts.append(f"The {name} season hasn't started.")
+    else:
+        top = ", ".join(f"{ordinal(r['position'])} {r['team']['name']} {r['points']} points"
+                        for r in table[:config.FOOTBALL_TOP_ROWS])
+        parts.append(f"{name} table: {top}.")
+        if team and team["position"] is not None:
+            parts.append(f"{team['name']} are {team['position_words']} with {team['points']} points.")
+    days = config.FOOTBALL_WINDOW_DAYS
+    results, upcoming = page["results"], page["upcoming"]
+    if results["matches"]:
+        parts.append(f"Latest results, round {results['matchday']}: "
+                     + "; ".join(f"{_score(m)} on {m['day']}" for m in results["matches"]) + ".")
+    else:
+        parts.append(f"No results in the last {days} days.")
+    if upcoming["matches"]:
+        parts.append(f"Next round, {upcoming['matchday']}: "
+                     + "; ".join(_coming(m) for m in upcoming["matches"]) + ".")
+    else:
+        parts.append(f"No matches in the next {days} days.")
+    return _as_of(page) + " ".join(parts)
+
+
+def team_facts(page: dict, team: str) -> str:
+    """What JARVIS is told about a followed team, from its league's page."""
+    block = page["team"]
+    if not block or block["slug"] != team:
+        raise ValueError(f"{team} is not followed in {page['league']['slug']}")
+    name = block["name"]
+    parts = []
+    if block["position"] is not None:
+        parts.append(f"{name} are {block['position_words']} in {page['league']['name']} with "
+                     f"{block['points']} points.")
+    else:
+        parts.append(f"{name}'s league position isn't in the data.")
+    if block["recent"]:
+        last = block["recent"][0]
+        m = last["match"]
+        parts.append(f"Last result: {_score(m)}, {_RESULT_WORDS[last['result']]}, on {m['day']} "
+                     f"({m['competition']}).")
+    else:
+        parts.append("No recent result in the data.")
+    m = block["next"]
+    if m is None:
+        parts.append("No match scheduled yet.")
+    elif m["status"] == "live":
+        parts.append(f"Playing now: {_score(m)} ({m['competition']}, live; free scores arrive late).")
+    else:
+        where = "at home" if m["home"]["id"] == block["id"] else "away"
+        parts.append(f"Next: {m['home']['name']} v {m['away']['name']}, {m['day']} at {m['time']}, "
+                     f"{m['competition']}, {where}.")
+    if block["form"]:
+        words = ", ".join(_FORM_WORDS[r["result"]] for r in block["form"])
+        parts.append(f"Form in their last {len(block['form'])}, oldest first: {words}.")
+    cl = next((r for r in block["champions_league"] or [] if r["team"]["id"] == block["id"]), None)
+    if cl:
+        parts.append(f"In the Champions League they are {ordinal(cl['position'])} with "
+                     f"{cl['points']} points.")
+    parts.append(block["cup_note"] + ".")
+    return _as_of(page) + " ".join(parts)
+
+
+def _no_league(value) -> str:
+    names = ", ".join(lg["name"] for lg in config.FOOTBALL_LEAGUES.values())
+    return f"Error: no league called '{outside.clean(str(value), config.FOOTBALL_NAME_MAX)}'. Leagues: {names}."
+
+
+_LEAGUE_ARG = {"type": "string", "enum": list(config.FOOTBALL_LEAGUES),
+               "description": "premier-league, serie-a, la-liga, bundesliga or ligue-1"}
+
+
+@tool("Show one of the five football leagues on screen, with its table, results and fixtures, "
+      "after a short animation. Call it only when the user asks to see, show or open a league, "
+      "such as 'show me Serie A'. It opens the Sports space itself, so do not also call "
+      "open_space. For questions about a league, use get_league instead.",
+      league=_LEAGUE_ARG)
+def show_league(league: str) -> ShowLeague | str:
+    slug = league_slug(league)
+    if slug is None:
+        return _no_league(league)
+    return ShowLeague(slug, f"Opened {config.FOOTBALL_LEAGUES[slug]['name']} on the screen.")
+
+
+@tool("Facts about one of the five football leagues from today's data: the top 4 with points, "
+      "the followed team's place, the latest round's results and the next round's fixtures. "
+      "Call it for questions such as 'who's top of La Liga?', and for teams other than Roma and "
+      "Newcastle. Use only what it returns.",
+      league=_LEAGUE_ARG)
+def get_league(league: str) -> str:
+    slug = league_slug(league)
+    if slug is None:
+        return _no_league(league)
+    try:
+        return league_facts(league_page(slug))
+    except FootballError as e:
+        return TOOL_MESSAGES[e.kind]
+
+
+@tool("Facts about Roma or Newcastle from today's data: league position and points, the last "
+      "result, the next match, recent form and any Champions League place. Call it for questions "
+      "about either team, such as 'when do Roma play next?'. Use only what it returns.",
+      team={"type": "string", "enum": list(config.FOOTBALL_TEAMS),
+            "description": "roma or newcastle"})
+def get_team(team: str) -> str:
+    slug = team_slug(team)
+    if slug is None:
+        names = " and ".join(t["name"] for t in config.FOOTBALL_TEAMS.values())
+        return f"Error: JARVIS follows only {names}."
+    try:
+        return team_facts(league_page(config.FOOTBALL_TEAMS[slug]["league"]), slug)
+    except FootballError as e:
+        return TOOL_MESSAGES[e.kind]

@@ -23,6 +23,8 @@ import spaces  # noqa: F401, E402
 # Last: find_place and get_forecast come after the tools above. A new conversation also
 # forgets the place on screen (reset), and the ticker names it (_forecast_words).
 import weather  # noqa: E402
+# After weather: show_league, get_league and get_team are the last tools the model sees.
+import football  # noqa: E402, F401
 
 log = logging.getLogger("jarvis.brain")
 

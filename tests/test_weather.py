@@ -513,9 +513,10 @@ def test_tool_results_hold_no_raw_reply_text(monkeypatch):
     assert injected not in weather.get_forecast() + weather.get_forecast("2026-11-06")
 
 
-def test_the_tools_come_last():
+def test_weathers_tools_come_before_footballs():
     names = [s["function"]["name"] for s in tools.SCHEMAS]
-    assert names[-3:] == ["open_space", "find_place", "get_forecast"]
+    assert names[-6:] == ["open_space", "find_place", "get_forecast", "show_league",
+                          "get_league", "get_team"]
 
 
 def test_canned_replies_for_the_evals():
