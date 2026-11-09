@@ -146,6 +146,10 @@ def build_system_prompt() -> str:
         "details to fill a gap. Your knowledge stops well before today's date, so "
         "you do not know the outcome of recent events such as sports results, "
         "elections or news; say so instead of answering. "
+        # Stage 5: the one exception, answered from facts written by football.py
+        "Football is the exception: for Roma, Newcastle and the Premier League, Serie A, La "
+        "Liga, Bundesliga and Ligue 1, call get_team or get_league and use only what they "
+        "return. "
         "Your replies will be spoken aloud, so "
         "use plain speech with no markdown, bullet points, or emoji. "
         "Always write numbers as digits, never as words, and copy them exactly as "
@@ -295,6 +299,7 @@ class Assistant:
         self.show_space = None      # a space the last tool asked the page to show, if any
         self.show_places = None     # places find_place asked the globe to show, if any
         self.show_league = None     # a league show_league asked the page to open, if any
+        self.shown_leagues = set()  # the leagues opened in the current reply
         self.last_prompt_tokens = None  # tokens the model read on its last call (from Ollama)
         self.lock = threading.Lock()
 
@@ -326,6 +331,12 @@ class Assistant:
             self.show_places = result.matches
             return result.reply
         if isinstance(result, tools.ShowLeague):
+            # Asked again, the model called show_league 4 times in one reply and never answered
+            # (stage 5's evals): the same league twice in one reply is told so, as a fact
+            if result.league in self.shown_leagues:
+                return (f"{config.FOOTBALL_LEAGUES[result.league]['name']} was opened on the "
+                        "screen by the call before this one in this reply.")
+            self.shown_leagues.add(result.league)
             # Sports opens at the globe and plays the kick to this league (the `league` event)
             self.show_space = "sports"
             self.show_league = result.league
@@ -434,6 +445,7 @@ class Assistant:
                 self.confirm = None
                 self.show_space = None
                 self.show_league = None
+                self.shown_leagues = set()  # leagues show_league opened in this reply
                 steps = []
                 step_keys = []      # (tool, what it was about) for each step, see _mark_corrected
                 self.messages[0]["content"] = build_system_prompt()

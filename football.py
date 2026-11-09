@@ -519,13 +519,16 @@ _LEAGUE_ARG = {"type": "string", "enum": list(config.FOOTBALL_LEAGUES),
 @tool("Show one of the five football leagues on screen, with its table, results and fixtures, "
       "after a short animation. Call it only when the user asks to see, show or open a league, "
       "such as 'show me Serie A'. It opens the Sports space itself, so do not also call "
-      "open_space. For questions about a league, use get_league instead.",
+      "open_space. If the user asks to see a league again, call it again: they may have left it. "
+      "For questions about a league, use get_league instead.",
       league=_LEAGUE_ARG)
 def show_league(league: str) -> ShowLeague | str:
     slug = league_slug(league)
     if slug is None:
         return _no_league(league)
-    return ShowLeague(slug, f"Opened {config.FOOTBALL_LEAGUES[slug]['name']} on the screen.")
+    return ShowLeague(slug, f"Opened {config.FOOTBALL_LEAGUES[slug]['name']} on the screen. "
+                            "The user can leave it at any time, so it may not be on screen the "
+                            "next time they ask.")
 
 
 @tool("Facts about one of the five football leagues from today's data: the top 4 with points, "

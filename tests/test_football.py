@@ -465,7 +465,11 @@ def test_league_names_are_accepted_in_any_case():
 
 def test_show_league_asks_for_nothing():
     # no_internet refuses any request, so this also proves show_league fetches nothing
-    assert football.show_league("Serie A") == tools.ShowLeague("serie-a", "Opened Serie A on the screen.")
+    # The second sentence came from the evals: asked again, JARVIS said it was already shown
+    # and opened nothing. An order here ("call it again") made it loop (CHANGELOG section 64)
+    assert football.show_league("Serie A") == tools.ShowLeague(
+        "serie-a", "Opened Serie A on the screen. The user can leave it at any time, so it may "
+                   "not be on screen the next time they ask.")
 
 
 def test_an_unknown_league_or_team_is_an_error():

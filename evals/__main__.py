@@ -25,12 +25,15 @@ import json  # noqa: E402
 import sys  # noqa: E402
 import time  # noqa: E402
 from datetime import datetime  # noqa: E402
+from zoneinfo import ZoneInfo  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 import ollama  # noqa: E402
 
 import brain  # noqa: E402
+import config  # noqa: E402
 import database  # noqa: E402
+import football  # noqa: E402
 import jcal  # noqa: E402
 import outside  # noqa: E402
 import tools  # noqa: E402
@@ -42,11 +45,23 @@ from evals import speed  # noqa: E402
 RESULTS = Path(__file__).resolve().parent / "results"
 
 # The evals never go online: JARVIS's one door to the internet (outside.py) answers with
-# made-up replies (tests/weather_data.py), the same ones the tests use
+# made-up replies (tests/weather_data.py, tests/football_data.py), the same ones the tests use
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests"))
+import football_data  # noqa: E402
 import weather_data  # noqa: E402
 
-outside._fetch = lambda address, headers=None: weather_data.canned_fetch(address, NOW)
+
+def canned_fetch(address: str, headers=None) -> bytes:
+    if address.startswith(config.FOOTBALL_API):
+        return football_data.canned_fetch(address)
+    return weather_data.canned_fetch(address, NOW)
+
+
+outside._fetch = canned_fetch
+# A made-up key (the real one is never read here: JARVIS_ENV is empty, see the top), and
+# kick-offs in London time, so the facts are the same on any Mac
+football._key = lambda: football_data.KEY
+football._ZONE = ZoneInfo("Europe/London")
 
 
 class Clock:
@@ -62,6 +77,7 @@ class FakeDateTime(datetime):
 
 brain.datetime = FakeDateTime
 jcal.datetime = FakeDateTime
+football._now = lambda: Clock.now
 
 # Every tool call the model makes in the current run, recorded and then run for real
 calls = []
@@ -111,6 +127,8 @@ def reset(case, model: str) -> brain.Assistant:
         db.commit()
     calls.clear()
     weather.forget_everything()
+    football.forget_everything()
+    outside.forget_rate_guard()     # 9 football requests a minute: runs come faster than that
     assistant = RecordingAssistant(model=model, think=THINK[0])
     if case.place:
         # As the page's confirm does: the place on screen, and its line in the conversation

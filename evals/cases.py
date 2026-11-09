@@ -50,6 +50,10 @@ CLAIMS_CHANGED = ["i have moved", "i've moved", "i have changed", "i've changed"
                   "has now been changed", "has now been rescheduled"]
 DENTIST = {"title": "Dentist", "date": TUE, "time": "15:00", "end_time": "16:00"}
 
+# Football: a team JARVIS does not follow is not in the facts, so the reply must say so
+FOLLOWED_NOT_FOUND = DONT_KNOW + ["no result", "not in", "isn't in", "doesn't include",
+                                  "not among", "not listed", "no record", "no match"]
+
 # Weather: a figure in a reply before the user confirmed a place would be made up
 TEMPERATURE_WORDS = ["°", "degrees", "celsius", "fahrenheit"]
 PARIS = ("Paris", 48.85, 2.35)
@@ -358,6 +362,38 @@ CASES = [
          excludes=["°", "percent"]),
     Case("weather_idiom_no_tool", "I'm feeling a bit under the weather today.",
          forbid=["find_place", "get_forecast", "open_space"]),
+
+    # --- Football: get_team, get_league and show_league (docs/specs/2026-11-07-sports-space.md,
+    # stage 5). Offline: made-up football-data.org replies for Monday 2030-01-07, London time.
+    Case("football_roma_next", "When do Roma play next?",
+         expect=[("get_team", {"team": "roma"})], forbid=["show_league", "open_space"],
+         includes=["milan"], includes_any=["19:45", "7:45"]),
+    Case("football_newcastle_weekend", "How did Newcastle do at the weekend?",
+         expect=[("get_team", {"team": "newcastle"})], includes=["arsenal"],
+         includes_any=["2-2", "2 2", "2 all", "drew", "draw"]),
+    Case("football_top_la_liga", "Who's top of La Liga?",
+         expect=[("get_league", {"league": "la-liga"})], includes=["real madrid"]),
+    Case("football_roma_table", "Where are Roma in the table?",
+         expect_any=["get_team", "get_league"], includes_any=["3rd", "third"]),
+    Case("football_show_bundesliga", "Show me the Bundesliga.",
+         expect=[("show_league", {"league": "bundesliga"})], max_calls={"show_league": 1},
+         forbid=["open_space"]),
+    # Asked again: in stage 5's demo and first full eval, the same request a second time made
+    # JARVIS call show_league 4 times (every round) and never answer, or open nothing. Fixed by
+    # a sentence in its description, a fact in its result and a factual result for a repeat in
+    # one reply. A second or third call is harmless (the page ignores a repeat), so the check is
+    # no runaway loop and a reply, not a single call.
+    Case("football_show_again", "Show me the Premier League.",
+         before=[("09:00", "Show me the Premier League.")],
+         expect=[("show_league", {"league": "premier-league"})], max_calls={"show_league": 3},
+         excludes=["could not finish"]),
+    Case("football_league_mentioned_no_show", "Serie A has had so many draws this season.",
+         forbid=["show_league", "open_space"]),
+    Case("football_unfollowed_team", "How did Juventus do?",
+         expect=[("get_league", {"league": "serie-a"})], includes_any=FOLLOWED_NOT_FOUND,
+         excludes=["juventus won", "juventus lost", "juventus drew", "juventus beat"]),
+    Case("football_other_sport_unknown", "Who won the NBA game last night?",
+         forbid=["get_team", "get_league", "show_league"], includes_any=DONT_KNOW),
 ]
 
 # The same requests sent from Work, whose stamp says '· Work': a sentence about the stamp

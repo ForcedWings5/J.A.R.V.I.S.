@@ -697,3 +697,21 @@ def test_a_league_is_not_carried_into_the_next_turn():
     a.show_league = "serie-a"         # left over, as if a turn ended early
     events, _ = run(a, "What is 1 plus 1?")
     assert not any(e["type"] == "league" for e in events)
+
+
+def test_a_second_show_league_in_one_reply_says_it_was_done():
+    """In the evals, asked again, JARVIS called show_league 4 times in one reply and never
+    answered. A second call for the same league in one reply gets a different, factual result
+    and no second event, which stopped the loop at 2 or 3 calls (CHANGELOG section 64)."""
+    model = FakeModel(use(call("show_league", league="premier-league")),
+                      use(call("show_league", league="premier-league")), say("There, sir."))
+    a = brain.Assistant(chat=model)
+    events, _ = run(a, "Show me the Premier League.")
+    assert [e["type"] for e in events].count("league") == 1
+    results = [m["content"] for m in a.messages if isinstance(m, dict) and m["role"] == "tool"]
+    assert results[1] == ("Premier League was opened on the screen by the call before this one "
+                          "in this reply.")
+    # The next reply may open it again: the user may have left it
+    a.chat = FakeModel(use(call("show_league", league="premier-league")), say("There, sir."))
+    events, _ = run(a, "Show me the Premier League.")
+    assert [e["type"] for e in events].count("league") == 1

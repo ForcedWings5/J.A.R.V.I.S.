@@ -249,3 +249,10 @@ def test_the_eval_runner_never_reads_the_real_env_file():
     first_import = source.index("\nimport argparse")
     assert source.index('os.environ["JARVIS_ENV"] = os.devnull') < first_import
     assert source.index('os.environ.pop("FOOTBALL_DATA_KEY", None)') < first_import
+
+
+def test_the_eval_runner_answers_football_offline():
+    source = (Path(__file__).parent.parent / "evals" / "__main__.py").read_text()
+    assert "football_data.canned_fetch(address)" in source
+    assert "football._key = lambda: football_data.KEY" in source
+    assert "outside.forget_rate_guard()" in source
