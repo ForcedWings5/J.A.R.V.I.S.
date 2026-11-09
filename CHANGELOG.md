@@ -1472,6 +1472,46 @@ Picking a league on the globe now plays a real person's movement. A downloaded 3
     - the bake tool's own three.js files are not pinned by fingerprint;
     - no test for a symlink out of the bake tool's folders.
 
+## 64. Sports, stage 5: asking JARVIS
+
+You can now ask JARVIS about football: "When do Roma play next?", "How did Newcastle do at the weekend?", "Who's top of La Liga?". It answers from facts written by code. "Show me Serie A" opens Sports at the globe from any space and plays the kick, as if you had clicked Italy. This is the last stage of the Sports spec's version 1 (`docs/specs/2026-11-07-sports-space.md`). Plan: `docs/plans/2026-11-09-sports-stage-5.md`.
+
+- **Three tools in `football.py`, registered last** (the model now sees `..., get_forecast, show_league, get_league, get_team`):
+  - **`show_league(league)`** fetches nothing. It returns `ShowLeague`, a result that only changes the view. The model hears "Opened Serie A on the screen. The user can leave it at any time, so it may not be on screen the next time they ask."
+  - **`get_league(league)`**: the top 4 with points, the followed team's place, the latest round's results and the next round's fixtures. For example: "Serie A table: 1st Inter 45 points, ... Roma are 3rd with 40 points. Latest results, round 19: Milan 0 Napoli 2 on Friday 4 January; ..."
+  - **`get_team(team)`**, Roma or Newcastle: position and points, the last result ("Inter 2 Roma 1, a loss"), the next match with its local time and home or away, form in words, any Champions League place, and the cup the free data lacks.
+  - **The model only picks from fixed names**: five leagues and two teams, as enums, checked again in code (`league_slug`, `team_slug` also take names such as "Serie A"). Code builds every request.
+  - **The facts are pure functions of `league_page`** (`league_facts`, `team_facts`), so a question and the page use the same cache: asking about Roma, then opening Serie A, costs no extra requests.
+  - **Failures** are the spec's plain lines, such as "Error: couldn't reach the football data." An earlier copy says its time first: "As of 14:05 (an earlier copy: ...)".
+  - **The key never reaches the model**: a test searches every tool result for it.
+- **A new `league` event**, after `show_league`'s step and before `space` (as Weather's `places`), so the page knows the league before Sports opens. The ticker says "Opened Serie A", "Checked La Liga", "Checked Roma".
+- **One sentence in the prompt**: it said JARVIS does not know recent sports results. Football is now the exception: for Roma, Newcastle and the five leagues, it calls `get_team` or `get_league`.
+- **On the page** (`space-sports.js`, `chat.js`, `spaces.js`):
+  - `sportsShowLeague(slug)` opens the picker, waits for Sports' opening animation (at most 8 s) and for the 3D player's first load (at most 3 s), then calls the usual `sportsKick`.
+  - Leaving, the Back button or a new address drop a kick that is still waiting. The same league asked for twice is ignored.
+  - **A space can now give its own address when it opens** (`registerSpace({address})`). So "show me Serie A" from Home leaves `#sports/football`, then the kick adds `#sports/serie-a`: Back goes to the picker, then back to Home.
+- **Three timing bugs found in the demo**, each pinned by a test that failed first:
+  - **The kick started under the opening animation.** `motion.js` empties `seq` for a moment while it makes the real switch, and that is exactly when `enter()` runs. The wait now yields once before looking.
+  - **The model called `show_league` 4 times in one reply**, and each `league` event restarted the kick, so the league never opened. The page now ignores the same league while it waits or kicks.
+  - **When the wait ran out under another space's opening** (you pressed 2 meanwhile), a kick started and was cancelled. No kick starts while a switch plays now. The single 4 s limit became two (8 s for the opening, which measured 3.7 s, and 3 s for the player), so a slow opening cannot lose the kick.
+- **"Show me the Premier League" asked twice** made JARVIS call `show_league` 4 times (every round) and never answer: in the demo, and 0 runs in 3 in the first full eval.
+  - An order in the result ("if they ask again, call show_league again"), as Weather's `find_place` has, made it worse: the model obeyed it every round.
+  - What worked, together: the advice in the tool's description ("If the user asks to see a league again, call it again: they may have left it"), the fact in its result, and code in `run_tool` that answers a second call for the same league in one reply with a fact ("Premier League was opened on the screen by the call before this one in this reply") and sends no second event.
+  - Then 9 runs in 10 made one call; the other made 4, but answered. A second or third call is harmless (the page ignores a repeat), so the new case `football_show_again` checks for no runaway loop (at most 3 calls) and a reply.
+- **Evals**: 9 new cases (89 in all): Roma's next match, Newcastle at the weekend, top of La Liga, Roma's place, show the Bundesliga, show again, a league mentioned only, Juventus (not followed: says it has no result, invents none), and an NBA question (still "I don't know"). They run offline on made-up replies for every football address (`tests/football_data.canned_fetch`), in London time, with the rate guard forgotten between runs.
+  - **Before**: 237/240, prompt `825d45cfb641` (section 61; checked unchanged on `main` first).
+  - **A first full run** with the plan's wording, prompt `6ff83f9c5fe2`: 260/267, `football_show_again` 0/3 (above).
+  - **After**: 264/267, prompt `cce493c7d018`. The football cases passed every run. Misses, one run in three each: `ask_am_pm` and `space_switch_and_answer` (both known), and `weather_find_paris_texas` (Ollama stopped the model's reply: "token repeat limit reached").
+  - **Speed**: median reply 3.1 s, as before.
+  - **Found, not fixed:** `weather_find_again` made 4 `find_place` calls and answered "Sorry, I could not finish that." in 2 runs of 3, and still passed (its checks do not look for that). The same habit as above, with Weather's tool; seen before, on 2026-11-05.
+- **Checked in a demo**: the browser pane was shown this time, so the animations ran at full frame rate. The real model, made-up football, its own database, port 8016.
+  - From Home and from Weather, "show me" ran the opening, the picker, the 3D kick and the league page (Newcastle's theme for the Premier League).
+  - The addresses were right; Back went to the picker, then to the space before.
+  - Busy (during the football's flight), the league already on screen, from La Liga's page, leaving while the kick waits (both orders), and Reduce motion (the page at once, no kick) all behaved.
+  - "When do Roma play next?" got "Roma play Milan at home this Saturday, 12 January, at 14:45" (the Mac's own time zone), and the screen did not change.
+  - No console errors and no policy violations.
+- **Not checked**: Safari, asking by voice, and live data from football-data.org through the tools (the page's requests were checked live in stage 2).
+
 ---
 
 ## Status
@@ -1503,9 +1543,10 @@ Picking a league on the globe now plays a real person's movement. A downloaded 3
 | Weather, stage 4: asking JARVIS (section 58) | Done: evals 228/231 (prompt `0a1a37f7968e`), plus a later-in-the-day case 3/3; checked in a demo and live; not yet in Safari or by voice |
 | Sports, stage 1: one shared door (section 59) | Done: 728 tests; Weather checked live through the new door; nothing fetched from football-data.org yet |
 | Sports, stage 2: the football server (section 60) | Done: 806 tests; checked live with the owner's key (team ids, reply shapes, Serie A and Premier League pages); no page or tools yet |
-| Sports, stage 3: the page (section 61) | Done: 816 tests; evals 237/240 (prompt `825d45cfb641`); checked in a demo and live; not yet in Safari or seen in motion; no football tools yet |
+| Sports, stage 3: the page (section 61) | Done: 816 tests; evals 237/240 (prompt `825d45cfb641`); checked in a demo and live; not yet in Safari or seen in motion |
 | Sports, stage 4: the animations (section 62) | Done: 819 tests; checked in a demo (the kick's timing with a timer standing in for frames, its look from stills); not yet seen at full frame rate or in Safari; no prompt change |
 | Sports, stage 4b: the 3D player (section 63) | Done: 850 tests; three.js 0.170.0 pinned; the model files on this Mac only; checked in a demo with a timer standing in for frames; not yet seen at full frame rate or in Safari |
+| Sports, stage 5: asking JARVIS (section 64) | Done: 897 tests; evals 264/267 (prompt `cce493c7d018`); checked in a demo at full frame rate with the real model and made-up football; not yet in Safari, by voice, or with live data through the tools |
 | Other websites (Origin check) | Done: attack shown and then blocked in the real browser, dashboard unaffected, 406 tests (section 36) |
 | Voice input, voice output, voice mode switch | Tested and working |
 | Calendar views (compact agenda, year/month/week/day) | Layout confirmed good; all four views checked in a demo, on Home and in Work (section 51) |
@@ -1536,7 +1577,7 @@ Picking a league on the globe now plays a real person's movement. A downloaded 3
 
 The full roadmap, with the reasons and the order, is in `plan.md`. In short:
 
-1. The Sports space, the third space (its brainstorm is paused at the panels; it follows Weather's pattern for outside data).
+1. More sports in the Sports space (F1, NBA, NFL, MLB), each its own build with its own data source and agreement.
 2. Reminders (Phase 5, item 2).
 3. A morning briefing: today's events, overdue tasks and reminders in one reply.
 4. News, as read-only outside text: longer than Weather's place names, so it needs its own prompt-injection design first (SECURITY.md).

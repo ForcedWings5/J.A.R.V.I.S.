@@ -92,7 +92,8 @@ next match and a countdown, form, fixtures, and the Champions League table when 
 The trail at the top, the Back button or Esc go up a level, and the address
 (`#sports/serie-a`) keeps your place on a reload. The data comes from football-data.org's free
 plan, which needs a free key (below); free scores arrive a little late (CHANGELOG sections 59
-to 61). The club badges are your own files, `static/img/crests/roma.png` and `newcastle.png`:
+to 61). You can also ask JARVIS: "When do Roma play next?", "Who's top of La Liga?", or "Show
+me Serie A", which opens Sports at the globe and plays the kick (CHANGELOG section 64). The club badges are your own files, `static/img/crests/roma.png` and `newcastle.png`:
 the clubs own them, so git ignores that folder and they never leave this Mac. Without them the
 page simply shows no badge.
 

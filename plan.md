@@ -139,8 +139,9 @@ Sports, JARVIS in every one), so the dashboard does not get cluttered. Design:
    (spec `docs/specs/2026-11-05-weather-space.md`, CHANGELOG sections 55 to 58). Sports is
    being built in five stages (spec `docs/specs/2026-11-07-sports-space.md`): a hub of sports,
    Football first. Stage 1, one shared door to the internet, stage 2, the football server,
-   stage 3, the page, stage 4, the animations, and stage 4b, the 3D player, are done
-   (CHANGELOG sections 59 to 63). Next: JARVIS's tools.
+   stage 3, the page, stage 4, the animations, stage 4b, the 3D player, and stage 5,
+   JARVIS's tools, are done (CHANGELOG sections 59 to 64). Next, each its own build: F1,
+   NBA, NFL, MLB.
    News needs a prompt-injection design first.*
 7. **Sound effects for the dashboard.** The animations are done (CHANGELOG section 42);
    the owner chose to leave sound for later. Quiet, short, and off with voice mode off.

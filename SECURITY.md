@@ -197,8 +197,9 @@ agreed for Sports and kept for Weather):
 ### Outside data: Football (Sports)
 
 The second outside service, for the Sports space (`docs/specs/2026-11-07-sports-space.md`).
-Being built in stages: stage 1 (CHANGELOG section 59) added the door's rules below, stage 2
-(section 60) the requests, for the page's `POST /sports/league`. Agreed with me on 2026-11-07.
+Built in stages: stage 1 (CHANGELOG section 59) added the door's rules below, stage 2
+(section 60) the requests, for the page's `POST /sports/league`, and stage 5 (section 64)
+JARVIS's tools. Agreed with me on 2026-11-07.
 
 - **What goes out**, to football-data.org only: my key (in the `X-Auth-Token` header), a
   competition code (`SA`) or a team id, and a date range. With it, as with every website, the
@@ -207,6 +208,13 @@ Being built in stages: stage 1 (CHANGELOG section 59) added the door's rules bel
   football-data.org can see which leagues and teams I look at, and when. Accepted (section 7).
 - **The addresses are fixed**: 13, built in `config.py` from the five league codes, `CL` and
   the two followed teams' ids. The model only ever picks from fixed names.
+- **JARVIS can cause these requests** (stage 5): `get_league` and `get_team` take one of five
+  league names or two team names (an enum, checked again in code), and code builds every
+  request, through the same cache and rate guard as the page. The model never gives an
+  address, id or date. What reaches the model is facts written by `football.py` (positions,
+  points, scores, local times) and team names cleaned to 40 characters; the key never does
+  (pinned by `test_the_key_never_reaches_a_tool_result`). `show_league` fetches nothing: it
+  only changes the view.
 - **A rate guard**: the free plan allows 10 requests a minute, and going over can get a key
   blocked. `outside.py` allows 9 a minute to football-data.org and refuses the next before it
   is sent; requests that failed still count. A general league page costs 2 requests, a themed

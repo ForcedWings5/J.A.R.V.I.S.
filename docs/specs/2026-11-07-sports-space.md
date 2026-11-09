@@ -2,7 +2,8 @@
 
 Status: design agreed with the owner in conversation on 2026-11-03 (paused) and 2026-11-07;
 the 3D player (stage 4b) agreed on 2026-11-08. Stages 1 to 3 built (CHANGELOG sections 59 to
-61), stage 4 built (section 62). Builds on `docs/specs/2026-10-27-spaces-and-work.md` (spaces, `registerSpace`) and
+61), stage 4 built (section 62), stage 4b built (section 63), stage 5 built (section 64,
+2026-11-09): version 1 is complete. Builds on `docs/specs/2026-10-27-spaces-and-work.md` (spaces, `registerSpace`) and
 `docs/specs/2026-11-05-weather-space.md` (outside data, the globe, the privacy rule).
 
 ## Why
@@ -449,7 +450,7 @@ One branch per stage; each merged when CI is green and the owner has checked it.
      `sports-player.js`; the code-drawn kick as the fallback. It has its own branch, after
      stage 4 is merged.
 5. **JARVIS.** `show_league`, `get_league`, `get_team`, the `league` event, the eval cases, a
-   full eval before and after.
+   full eval before and after. *Built 2026-11-09 (CHANGELOG section 64).*
 
 Later, each its own design and build: F1 (a team to be chosen; the car), NBA (dribble and
 shoot), NFL (catch and throw), MLB. Each needs its own data source, terms and the owner's
