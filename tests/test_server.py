@@ -833,3 +833,54 @@ def test_the_3d_player_uses_only_our_files():
         "./vendor/three.module.min.js", "./vendor/GLTFLoader.js"]
     assert "/static/models/player.glb" in source and "/static/models/player.json" in source
     assert "http" not in source
+
+
+# ---------- stage 5: JARVIS opens a league with the kick ----------
+
+def test_chat_hands_the_league_to_sports_before_the_space():
+    chat = (ROOT / "static" / "js" / "chat.js").read_text()
+    assert "msg.type === 'league'" in chat
+    assert "typeof sportsShowLeague === 'function'" in chat
+
+
+def test_a_space_may_give_its_own_address():
+    spaces = (ROOT / "static" / "js" / "spaces.js").read_text()
+    assert "function spaceAddress(" in spaces and "spaceAddress(next)" in spaces
+    sports = (ROOT / "static" / "js" / "space-sports.js").read_text()
+    assert "address: () => sportsAddress(sportsLevel(), sportsLeague)" in sports
+
+
+def test_a_waiting_kick_is_dropped_on_leaving():
+    sports = (ROOT / "static" / "js" / "space-sports.js").read_text()
+    for where in ("leave() {", "function sportsFollowAddress() {"):
+        body = sports.split(where, 1)[1].split("\n}", 1)[0].split("},\n", 1)[0]
+        assert "++sportsPendingToken" in body, where
+
+
+def test_the_waiting_kick_looks_at_the_opening_after_the_switch():
+    """motion.js empties seq while it makes the real switch (swapSpace), and enter() runs in
+    that moment: the wait must yield once before looking at seq, or the kick starts under the
+    opening animation (found in stage 5's demo)."""
+    sports = (ROOT / "static" / "js" / "space-sports.js").read_text()
+    body = sports.split("async function sportsKickWhenReady(", 1)[1].split("\n}", 1)[0]
+    assert body.index("await wait(0)") < body.index("while (typeof seq")
+
+
+def test_the_same_league_again_does_not_restart_the_kick():
+    """In the demo the model called show_league 4 times in one turn: each event restarted the
+    kick, so the league never opened. The same league, already waiting or being kicked to,
+    is left alone."""
+    sports = (ROOT / "static" / "js" / "space-sports.js").read_text()
+    body = sports.split("function sportsShowLeague(", 1)[1].split("\n}", 1)[0]
+    assert "sportsPending && sportsPending.slug === slug" in body
+    assert "sportsAnim && footballWanted === slug" in body
+    assert body.index("footballWanted === slug") < body.index("sportsCancelAnim()")
+
+
+def test_no_kick_starts_while_another_switch_plays():
+    """Found in stage 5's demo: the wait ran out while the switch to Work was playing, before
+    it called Sports' leave(), so a kick started under Work's opening (and was cancelled)."""
+    sports = (ROOT / "static" / "js" / "space-sports.js").read_text()
+    body = sports.split("async function sportsKickWhenReady(", 1)[1].split("\n}", 1)[0]
+    still = body.split("const still =", 1)[1].split(";", 1)[0]
+    assert "seq" in still

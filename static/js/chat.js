@@ -138,6 +138,9 @@ async function send(spoken) {
           switchSpaceWhenFree(msg.name);           // JARVIS opened a space (open_space)
         } else if (msg.type === 'places') {
           weatherShowMatches(msg.matches);         // find_place: spin the globe and ask
+        } else if (msg.type === 'league') {
+          // show_league: Sports opens at the globe and kicks to the league (before `space`)
+          if (typeof sportsShowLeague === 'function') sportsShowLeague(msg.league);
         } else if (msg.type === 'break') {
           feed(true);
           if (full) full += ' ';

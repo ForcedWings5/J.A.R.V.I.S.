@@ -5,8 +5,9 @@
 // layout itself is in the CSS. Each space registers itself, the way a tool uses @tool.
 
 // ready and readout are for the opening animation (motion.js): is the content drawn yet, and
-// the line under the bar, from the real contents
-const spaces = [];              // { name, title, key, section, enter?, leave?, ready?, readout? }
+// the line under the bar, from the real contents. address is the space's own address once it
+// has opened, for a space with levels ('#sports/football'); without it, '#' + name.
+const spaces = [];              // { name, title, key, section, enter?, leave?, ready?, readout?, address? }
 let currentSpace = 'home';
 const spacesNav = document.getElementById('spaces');
 
@@ -33,6 +34,14 @@ function runSafely(space, what) {
   try { if (space[what]) space[what](); } catch (e) { console.error(`space ${space.name}: ${what} failed`, e); }
 }
 
+// The address a space is shown at. Only its own: anything not starting with '#<name>' (or a
+// failing address()) gives '#<name>', so a space can never send the page somewhere else
+function spaceAddress(space) {
+  let own = null;
+  try { if (space.address) own = space.address(); } catch (e) { console.error(`space ${space.name}: address failed`, e); }
+  return typeof own === 'string' && own.toLowerCase().startsWith('#' + space.name) ? own : '#' + space.name;
+}
+
 function switchSpace(name, opts = {}) {
   const next = spaces.find(s => s.name === name);
   if (!next || name === currentSpace) return false;
@@ -46,7 +55,7 @@ function switchSpace(name, opts = {}) {
   drawSpaceNames();
   runSafely(next, 'enter');
   if (!opts.fromAddress) {
-    history.pushState(null, '', name === 'home' ? location.pathname + location.search : '#' + name);
+    history.pushState(null, '', name === 'home' ? location.pathname + location.search : spaceAddress(next));
   }
   return true;
 }

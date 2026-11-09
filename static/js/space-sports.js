@@ -148,14 +148,61 @@ function sportsGrow(button) {
   return { done, skip: () => end(true), cancel: () => end(false) };
 }
 
-// The way into a league from the picker (stage 5's "show me Serie A" will use it too): the
-// silhouette kicks the ball onto the country, and the league's data is asked for as it starts.
+// The way into a league from the picker, and for JARVIS's "show me Serie A" (sportsShowLeague):
+// the player kicks the ball onto the country, and the league's data is asked for as it starts.
 // From anywhere else, or with Reduce motion, the page simply opens.
 function sportsKick(slug) {
   if (!sportsLeagueInfo(slug) || sportsAnim) return;
   if (globeCalm() || sportsLevel() !== 'football') { sportsGo('league', slug); return; }
   sportsFootball.prepare(slug);
   sportsPlay(sportsFootball.kick(slug), () => sportsGo('league', slug));
+}
+
+// ---------- JARVIS's "show me Serie A" (the `league` event, chat.js) ----------
+// The event comes just before the `space` one, so Sports opens at the picker, waits for its
+// opening animation (and the 3D player, briefly), then kicks, as if the country were clicked.
+// Leaving, the Back button or a new address drop a kick still waiting (the token).
+const SPORTS_OPENING_WAIT_MS = 8000;     // at most this long for Sports' opening animation...
+const SPORTS_PLAYER_WAIT_MS = 3000;      // ...then this long for the 3D player's first load
+const SPORTS_PENDING_MAX_AGE_MS = 10000; // a league older than this is forgotten, not kicked later
+let sportsPending = null;                // { slug, at } JARVIS asked to show, not yet kicked
+let sportsPendingToken = 0;
+
+function sportsShowLeague(slug) {
+  if (!sportsLeagueInfo(slug)) return;
+  if (currentSpace === 'sports' && sportsLevel() === 'league' && sportsLeague === slug) return;
+  // The same league again (the model may ask twice in one turn): already waiting, or being
+  // kicked to, so restarting would only cancel the kick under way
+  if (sportsPending && sportsPending.slug === slug &&
+      Date.now() - sportsPending.at < SPORTS_PENDING_MAX_AGE_MS) return;
+  if (sportsAnim && footballWanted === slug) return;
+  sportsPending = { slug, at: Date.now() };
+  if (currentSpace !== 'sports') return;   // the `space` event opens Sports; enter() goes on
+  sportsCancelAnim();
+  if (sportsLevel() !== 'football') sportsGo('football');
+  sportsKickWhenReady(slug);
+}
+
+async function sportsKickWhenReady(slug) {
+  const token = ++sportsPendingToken;
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  // enter() calls this in the middle of motion.js's switch, while it has emptied seq for a
+  // moment (swapSpace): look only once that is over, or the kick starts under the opening
+  await wait(0);
+  // No other switch can start while this one plays (spaces.js refuses), so this is Sports' own
+  const until = Date.now() + SPORTS_OPENING_WAIT_MS;
+  while (typeof seq !== 'undefined' && seq && Date.now() < until) await wait(100);
+  // The 3D player (enterPicker started loading it): the first "show me" waits for him briefly,
+  // so it is not the drawn kick just because he was still loading
+  if (!globeCalm() && window.sportsPlayer && token === sportsPendingToken) {
+    await Promise.race([window.sportsPlayer.load(), wait(SPORTS_PLAYER_WAIT_MS)]);
+  }
+  // Not while a switch plays: one starting now is the user going elsewhere (its leave() comes
+  // partway through), so the kick would only start and be cancelled under it
+  const still = token === sportsPendingToken && sportsPending && sportsPending.slug === slug &&
+    currentSpace === 'sports' && sportsLevel() === 'football' && !(typeof seq !== 'undefined' && seq);
+  if (token === sportsPendingToken) sportsPending = null;
+  if (still) sportsKick(slug);
 }
 
 function sportsLeagueInfo(slug) {
@@ -259,20 +306,29 @@ registerSpace({
   // key 4, the chip or "open sports" open the hub (spec)
   enter() {
     sportsCancelAnim();
+    if (sportsPending && Date.now() - sportsPending.at < SPORTS_PENDING_MAX_AGE_MS) {
+      sportsGo('football', null, { fromAddress: true });
+      sportsKickWhenReady(sportsPending.slug);
+      return;
+    }
+    sportsPending = null;
     const where = location.hash.toLowerCase().startsWith('#sports')
       ? sportsFromAddress(location.hash) : { level: 'hub', league: null };
     sportsGo(where.level, where.league, { fromAddress: true });
   },
-  leave() { sportsCancelAnim(); sportsStopObjects(); sportsFootball.leave(); },
+  leave() { sportsCancelAnim(); sportsStopObjects(); sportsFootball.leave(); sportsPending = null; ++sportsPendingToken; },
   ready: () => sportsLevel() !== 'football' || sportsFootball.drawn(),
   readout: () => (sportsLevel() === 'league' ? sportsLeagueInfo(sportsLeague).name.toUpperCase()
     : sportsLevel() === 'football' ? 'PICK A LEAGUE' : 'SPORTS ONLINE'),
+  // So JARVIS's "show me" from another space leaves '#sports/football', and Back finds the picker
+  address: () => sportsAddress(sportsLevel(), sportsLeague),
 });
 
 // Within Sports, a new address (the Back button, or one typed) moves between levels.
 // spaces.js only switches spaces, so it ignores these.
 function sportsFollowAddress() {
   if (currentSpace !== 'sports') return;
+  sportsPending = null; ++sportsPendingToken;    // a kick JARVIS asked for no longer lands
   // Any new address cancels an animation, even one leading out of Sports: motion.js calls
   // leave() only partway through its sequence, and a kick landing before that would push its
   // league's address over the one the Back button chose (final review)
