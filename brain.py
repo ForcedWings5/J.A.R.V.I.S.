@@ -24,7 +24,7 @@ import spaces  # noqa: F401, E402
 # forgets the place on screen (reset), and the ticker names it (_forecast_words).
 import weather  # noqa: E402
 # After weather: show_league, get_league and get_team are the last tools the model sees.
-import football  # noqa: E402, F401
+import football  # noqa: E402
 
 log = logging.getLogger("jarvis.brain")
 
@@ -194,6 +194,16 @@ def _calendar_words(a: dict) -> str:
     return f"Checked the calendar for {_day(a.get('date'))}"
 
 
+def _league_words(a: dict) -> str:
+    slug = football.league_slug(a.get("league", ""))
+    return config.FOOTBALL_LEAGUES[slug]["name"] if slug else _short(str(a.get("league", "")).strip(), 60)
+
+
+def _team_words(a: dict) -> str:
+    slug = football.team_slug(a.get("team", ""))
+    return config.FOOTBALL_TEAMS[slug]["name"] if slug else _short(str(a.get("team", "")).strip(), 60)
+
+
 def _forecast_words() -> str:
     place = weather.place_on_screen()
     return f"Forecast for {place['name']}" if place else "Forecast"
@@ -216,6 +226,9 @@ _STEP_WORDS = {
     "open_space": lambda a: f"Showed the {str(a.get('name', '')).strip().title()} space",
     "find_place": lambda a: f"Looked for {_short(str(a.get('query', '')).strip(), 60)}",
     "get_forecast": lambda a: _forecast_words(),
+    "show_league": lambda a: f"Opened {_league_words(a)}",
+    "get_league": lambda a: f"Checked {_league_words(a)}",
+    "get_team": lambda a: f"Checked {_team_words(a)}",
 }
 
 
@@ -281,6 +294,7 @@ class Assistant:
         self.confirm = None         # the card to show for the current turn, if any
         self.show_space = None      # a space the last tool asked the page to show, if any
         self.show_places = None     # places find_place asked the globe to show, if any
+        self.show_league = None     # a league show_league asked the page to open, if any
         self.last_prompt_tokens = None  # tokens the model read on its last call (from Ollama)
         self.lock = threading.Lock()
 
@@ -310,6 +324,11 @@ class Assistant:
             # confirm); the model hears only the names (weather.find_place)
             self.show_space = "weather"
             self.show_places = result.matches
+            return result.reply
+        if isinstance(result, tools.ShowLeague):
+            # Sports opens at the globe and plays the kick to this league (the `league` event)
+            self.show_space = "sports"
+            self.show_league = result.league
             return result.reply
         if call.function.name in tools.ASKS_FIRST and str(result).startswith("Error:"):
             return result + NO_CARD
@@ -406,13 +425,15 @@ class Assistant:
     def chat_stream(self, user_text: str, space: str = "home"):
         """Generator: yields small dicts as the reply is produced.
 
-        delta (a piece of text), step (a tool ran), space (show this space, straight after
-        its step), break (a tool round ended), done (steps and any confirmation card), error.
+        delta (a piece of text), step (a tool ran), places (find_place's matches), league
+        (show_league's league), space (show this space, straight after its step and those two),
+        break (a tool round ended), done (steps and any confirmation card), error.
         """
         with self.lock:
             try:
                 self.confirm = None
                 self.show_space = None
+                self.show_league = None
                 steps = []
                 step_keys = []      # (tool, what it was about) for each step, see _mark_corrected
                 self.messages[0]["content"] = build_system_prompt()
@@ -493,6 +514,10 @@ class Assistant:
                         if self.show_places:
                             yield {"type": "places", "matches": self.show_places}
                             self.show_places = None
+                        # the league too, so Sports opens at the globe, not the hub
+                        if self.show_league:
+                            yield {"type": "league", "league": self.show_league}
+                            self.show_league = None
                         if self.show_space:
                             yield {"type": "space", "name": self.show_space}
                             self.show_space = None

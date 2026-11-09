@@ -658,3 +658,42 @@ def test_changing_an_event_waits_for_confirm_and_cancel_leaves_it():
         assert "15:00-16:00 Dentist" in jcal.get_events("2030-01-08")      # not yet
         a.resolve_pending(events[-1]["confirm"]["id"], approve)
         assert expected in jcal.get_events("2030-01-08")
+
+
+# --- football: show_league opens Sports at the globe, then the kick (stage 5) -------------
+
+def test_show_league_streams_league_then_space():
+    """league comes before space, as places does for Weather: the page must know the league
+    before Sports opens, or the hub would open with Reduce motion."""
+    model = FakeModel(use(call("show_league", league="serie-a")), say("Serie A, sir."))
+    events, _ = run(brain.Assistant(chat=model), "Show me Serie A.")
+    kinds = [e["type"] for e in events]
+    assert kinds.index("step") < kinds.index("league") < kinds.index("space")
+    assert next(e for e in events if e["type"] == "league") == {"type": "league", "league": "serie-a"}
+    assert next(e for e in events if e["type"] == "space")["name"] == "sports"
+    step = next(e for e in events if e["type"] == "step")["step"]
+    assert step == {"text": "Opened Serie A", "status": "done"}
+
+
+def test_an_unknown_league_streams_no_league():
+    model = FakeModel(use(call("show_league", league="Eredivisie")), say("I can't, sir."))
+    events, _ = run(brain.Assistant(chat=model), "Show me the Eredivisie.")
+    assert not any(e["type"] in ("league", "space") for e in events)
+
+
+@pytest.mark.parametrize("name, args, text", [
+    ("get_league", {"league": "la-liga"}, "Checked La Liga"),
+    ("get_team", {"team": "roma"}, "Checked Roma"),
+    ("show_league", {"league": "Premier League"}, "Opened Premier League"),
+    ("get_team", {"team": "juventus"}, "Checked juventus"),
+])
+def test_football_ticker_lines(name, args, text):
+    assert brain.describe_step(call(name, **args), "ok")["text"] == text
+
+
+def test_a_league_is_not_carried_into_the_next_turn():
+    # A left-over league would go out after the next turn's first step, whatever the tool
+    a = brain.Assistant(chat=FakeModel(use(call("calculate", expression="1+1")), say("2, sir.")))
+    a.show_league = "serie-a"         # left over, as if a turn ended early
+    events, _ = run(a, "What is 1 plus 1?")
+    assert not any(e["type"] == "league" for e in events)
