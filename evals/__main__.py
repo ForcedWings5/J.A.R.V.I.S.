@@ -51,8 +51,13 @@ import football_data  # noqa: E402
 import weather_data  # noqa: E402
 
 
+FOOTBALL_DOWN = [False]     # set per case (Case.football_down)
+
+
 def canned_fetch(address: str, headers=None) -> bytes:
     if address.startswith(config.FOOTBALL_API):
+        if FOOTBALL_DOWN[0]:
+            raise TimeoutError("made up: the football service is down")
         return football_data.canned_fetch(address)
     return weather_data.canned_fetch(address, NOW)
 
@@ -128,6 +133,7 @@ def reset(case, model: str) -> brain.Assistant:
     calls.clear()
     weather.forget_everything()
     football.forget_everything()
+    FOOTBALL_DOWN[0] = case.football_down
     outside.forget_rate_guard()     # 9 football requests a minute: runs come faster than that
     assistant = RecordingAssistant(model=model, think=THINK[0])
     if case.place:

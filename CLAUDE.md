@@ -44,7 +44,7 @@ is checked in code, never left to the model.** The model chooses tools; code val
 |---|---|
 | `config.py` | Every setting: model name, paths (built from the project folder), limits, voice. `JARVIS_DB` env var overrides the database path. |
 | `database.py` | The shared `conn` and `lock`, and `MIGRATIONS` (schema version in `PRAGMA user_version`). |
-| `tools.py` | The `@tool` registry (`FUNCTIONS`, `SCHEMAS`), `NeedsConfirmation`, `ShowSpace` (a tool result that changes only the view, so no card) `ShowPlaces` (find_place's matches: the page spins the globe and the user confirms one) and `ShowLeague` (show_league's league: Sports opens at the globe and kicks to it). |
+| `tools.py` | The `@tool` registry (`FUNCTIONS`, `SCHEMAS`), `NeedsConfirmation`, `ShowSpace` (a tool result that changes only the view, so no card), `ShowPlaces` (find_place's matches: the page spins the globe and the user confirms one) and `ShowLeague` (show_league's league: Sports opens at the globe and kicks to it). |
 | `brain.py` | `build_system_prompt()` and `Assistant`: the conversation, the tool loop (capped at `MAX_ROUNDS`), the pending confirmation. |
 | `jcal.py` | Calendar logic: durations, repeats (stored as one row, expanded on read), exceptions, conflicts, finished/upcoming labels. |
 | `tasks.py`, `calc.py` | To-do list; safe arithmetic (parses the expression with `ast`, never `eval`). |

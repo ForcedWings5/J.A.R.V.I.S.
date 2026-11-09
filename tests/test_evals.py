@@ -256,3 +256,11 @@ def test_the_eval_runner_answers_football_offline():
     assert "football_data.canned_fetch(address)" in source
     assert "football._key = lambda: football_data.KEY" in source
     assert "outside.forget_rate_guard()" in source
+
+
+def test_the_eval_runner_can_take_the_football_service_down():
+    """Final review: only the tool's error line was pinned, not that JARVIS invents no fixture."""
+    source = (Path(__file__).parent.parent / "evals" / "__main__.py").read_text()
+    assert "case.football_down" in source
+    names = {c.name: c for c in CASES}
+    assert names["football_service_down"].football_down is True

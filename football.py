@@ -402,7 +402,14 @@ TOOL_MESSAGES = {
     "unreachable": "Error: couldn't reach the football data.",
 }
 _RESULT_WORDS = {"W": "a win", "D": "a draw", "L": "a loss"}
+_WITH_THE = {"premier-league", "bundesliga"}    # "in the Premier League", but "in Serie A"
 _FORM_WORDS = {"W": "won", "D": "drew", "L": "lost"}
+
+
+def league_name(slug: str) -> str:
+    """The league's name as said in a sentence: 'the Premier League', 'Serie A'."""
+    name = config.FOOTBALL_LEAGUES[slug]["name"]
+    return f"the {name}" if slug in _WITH_THE else name
 
 
 def _slug(value) -> str:
@@ -436,9 +443,17 @@ def _coming(m: dict) -> str:
 
 
 def _as_of(page: dict) -> str:
+    """An earlier copy can be up to 6 hours old, so after midnight it names the day. `updated`
+    is the oldest reply used, which is the earlier copy (as the page reads it)."""
     if not page["earlier"]:
         return ""
-    return f"As of {page['earlier']} (an earlier copy: fresh data couldn't be fetched just now). "
+    day, today = page["updated"][:10], _now().date()
+    when = page["earlier"]
+    if day == (today - timedelta(days=1)).isoformat():
+        when = f"yesterday at {when}"
+    elif day != today.isoformat():
+        when = f"{day} at {when}"
+    return f"As of {when} (an earlier copy: fresh data couldn't be fetched just now). "
 
 
 def league_facts(page: dict) -> str:
@@ -476,7 +491,7 @@ def team_facts(page: dict, team: str) -> str:
     name = block["name"]
     parts = []
     if block["position"] is not None:
-        parts.append(f"{name} are {block['position_words']} in {page['league']['name']} with "
+        parts.append(f"{name} are {block['position_words']} in {league_name(page['league']['slug'])} with "
                      f"{block['points']} points.")
     else:
         parts.append(f"{name}'s league position isn't in the data.")
@@ -526,7 +541,7 @@ def show_league(league: str) -> ShowLeague | str:
     slug = league_slug(league)
     if slug is None:
         return _no_league(league)
-    return ShowLeague(slug, f"Opened {config.FOOTBALL_LEAGUES[slug]['name']} on the screen. "
+    return ShowLeague(slug, f"Opened {league_name(slug)} on the screen. "
                             "The user can leave it at any time, so it may not be on screen the "
                             "next time they ask.")
 

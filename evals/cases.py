@@ -392,6 +392,12 @@ CASES = [
     Case("football_unfollowed_team", "How did Juventus do?",
          expect=[("get_league", {"league": "serie-a"})], includes_any=FOLLOWED_NOT_FOUND,
          excludes=["juventus won", "juventus lost", "juventus drew", "juventus beat"]),
+    # The service down: the tool says so, and JARVIS must not fill the gap with a fixture
+    # (final review: only the tool's error line was pinned)
+    Case("football_service_down", "When do Roma play next?", football_down=True,
+         expect=[("get_team", {"team": "roma"})], excludes=["milan", "19:45", "7:45", "14:45"],
+         includes_any=["couldn't", "could not", "unable", "can't", "cannot", "not reach",
+                       "unavailable", "trouble", "difficulty"]),
     Case("football_other_sport_unknown", "Who won the NBA game last night?",
          forbid=["get_team", "get_league", "show_league"], includes_any=DONT_KNOW),
 ]

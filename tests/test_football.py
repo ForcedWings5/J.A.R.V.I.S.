@@ -407,7 +407,7 @@ def test_team_facts_add_the_champions_league(monkeypatch, frozen):
 def test_newcastles_facts(monkeypatch, frozen):
     data.serve(monkeypatch, data.newcastle_replies())
     facts = football.get_team("Newcastle")
-    assert facts.startswith("Newcastle are 11th in Premier League with 26 points. Last result: "
+    assert facts.startswith("Newcastle are 11th in the Premier League with 26 points. Last result: "
                             "Arsenal 2 Newcastle 2, a draw, on Friday 4 January (Premier League).")
     assert "Newcastle are 11th with 26 points." in football.get_league("premier-league")
 
@@ -536,3 +536,23 @@ def test_a_question_then_the_page_costs_no_more_requests(monkeypatch, frozen):
 def test_canned_replies_cover_every_football_address():
     for address in config.FOOTBALL_ADDRESSES:
         assert isinstance(json.loads(data.canned_fetch(address)), dict)
+
+
+def test_the_league_names_take_the_where_english_does():
+    """Final review: "11th in Premier League" was spoken as written."""
+    assert football.show_league("premier-league").reply.startswith("Opened the Premier League on the screen.")
+    assert football.show_league("bundesliga").reply.startswith("Opened the Bundesliga on the screen.")
+    assert football.show_league("la-liga").reply.startswith("Opened La Liga on the screen.")
+
+
+def test_an_earlier_copy_from_yesterday_says_so(monkeypatch, frozen, cache_clock):
+    """Final review: an earlier copy can be up to 6 hours old, so after midnight "As of 23:00"
+    read as later today."""
+    monkeypatch.setattr(football, "_now", lambda: datetime(2030, 1, 6, 23, 0))
+    data.serve(monkeypatch, data.serie_a_replies())
+    football.league_page("serie-a")                 # fetched at 23:00 on Sunday
+    cache_clock.t += 7200
+    monkeypatch.setattr(football, "_now", lambda: datetime(2030, 1, 7, 1, 0))
+    data.serve(monkeypatch, {k: TimeoutError() for k in data.serie_a_replies()})
+    assert football.get_team("roma").startswith(
+        "As of yesterday at 23:00 (an earlier copy: fresh data couldn't be fetched just now). ")

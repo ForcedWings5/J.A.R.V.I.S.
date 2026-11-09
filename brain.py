@@ -199,13 +199,15 @@ def _calendar_words(a: dict) -> str:
 
 
 def _league_words(a: dict) -> str:
-    slug = football.league_slug(a.get("league", ""))
-    return config.FOOTBALL_LEAGUES[slug]["name"] if slug else _short(str(a.get("league", "")).strip(), 60)
+    value = a.get("league") or ""         # missing or null: "a league", never "None"
+    slug = football.league_slug(value)
+    return config.FOOTBALL_LEAGUES[slug]["name"] if slug else _short(str(value).strip(), 60) or "a league"
 
 
 def _team_words(a: dict) -> str:
-    slug = football.team_slug(a.get("team", ""))
-    return config.FOOTBALL_TEAMS[slug]["name"] if slug else _short(str(a.get("team", "")).strip(), 60)
+    value = a.get("team") or ""
+    slug = football.team_slug(value)
+    return config.FOOTBALL_TEAMS[slug]["name"] if slug else _short(str(value).strip(), 60) or "a team"
 
 
 def _forecast_words() -> str:
@@ -334,8 +336,8 @@ class Assistant:
             # Asked again, the model called show_league 4 times in one reply and never answered
             # (stage 5's evals): the same league twice in one reply is told so, as a fact
             if result.league in self.shown_leagues:
-                return (f"{config.FOOTBALL_LEAGUES[result.league]['name']} was opened on the "
-                        "screen by the call before this one in this reply.")
+                name = football.league_name(result.league)
+                return f"{name[0].upper()}{name[1:]} was opened on the screen earlier in this reply."
             self.shown_leagues.add(result.league)
             # Sports opens at the globe and plays the kick to this league (the `league` event)
             self.show_space = "sports"

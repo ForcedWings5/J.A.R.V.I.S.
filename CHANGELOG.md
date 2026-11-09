@@ -1498,7 +1498,7 @@ You can now ask JARVIS about football: "When do Roma play next?", "How did Newca
   - An order in the result ("if they ask again, call show_league again"), as Weather's `find_place` has, made it worse: the model obeyed it every round.
   - What worked, together: the advice in the tool's description ("If the user asks to see a league again, call it again: they may have left it"), the fact in its result, and code in `run_tool` that answers a second call for the same league in one reply with a fact ("Premier League was opened on the screen by the call before this one in this reply") and sends no second event.
   - Then 9 runs in 10 made one call; the other made 4, but answered. Extra calls are harmless (the page ignores a repeat, and `MAX_ROUNDS` caps them), so the new case `football_show_again` checks that JARVIS opens the league and answers, not how many calls it made (10 in 10 after the final review).
-- **Evals**: 9 new cases (89 in all): Roma's next match, Newcastle at the weekend, top of La Liga, Roma's place, show the Bundesliga, show again, a league mentioned only, Juventus (not followed: says it has no result, invents none), and an NBA question (still "I don't know"). They run offline on made-up replies for every football address (`tests/football_data.canned_fetch`), in London time, with the rate guard forgotten between runs.
+- **Evals**: 9 new cases (89 in all; a tenth came with the final review): Roma's next match, Newcastle at the weekend, top of La Liga, Roma's place, show the Bundesliga, show again, a league mentioned only, Juventus (not followed: says it has no result, invents none), and an NBA question (still "I don't know"). They run offline on made-up replies for every football address (`tests/football_data.canned_fetch`), in London time, with the rate guard forgotten between runs.
   - **Before**: 237/240, prompt `825d45cfb641` (section 61; checked unchanged on `main` first).
   - **A first full run** with the plan's wording, prompt `6ff83f9c5fe2`: 260/267, `football_show_again` 0/3 (above).
   - **After**: 264/267, prompt `cce493c7d018`. The football cases passed every run. Misses, one run in three each: `ask_am_pm` and `space_switch_and_answer` (both known), and `weather_find_paris_texas` (Ollama stopped the model's reply: "token repeat limit reached").
@@ -1515,14 +1515,14 @@ You can now ask JARVIS about football: "When do Roma play next?", "How did Newca
   - **"Show me Serie A" arriving while you leave Sports** (you pressed 2 as JARVIS answered) ended on the hub, with a stray history entry, while JARVIS said it had opened Serie A. It now waits for the switch to finish, as `switchSpaceWhenFree` does: the demo ended on Serie A.
   - **The on-screen Back button, Esc and the trail** did not drop a kick still waiting, as the browser's Back does, so JARVIS's kick could play after you had gone up a level. They do now (`sportsDropPending`).
   - **`football_show_again` failed a run that made 4 calls but answered.** It now checks for the league opened and a reply (above).
-  - **Left for later:**
-    - a repeat in one reply after another league (A, B, A) is told A was opened "by the call before this one";
-    - "As of 21:00" names no day, though an earlier copy can be from yesterday;
-    - the facts say "in Premier League", not "in the Premier League";
-    - `spaceAddress` also accepts `#sportsball`;
-    - the ticker says "Opened None" if the model sends no league;
-    - no eval case yet checks that JARVIS invents no fixture when the service is down (only the tool's error line is pinned);
-    - the Weather "asked again" loop above.
+  - **Its smaller points, fixed before pushing**, each shown failing first:
+    - **A repeat after another league in one reply** (Serie A, La Liga, Serie A) was told Serie A was opened "by the call before this one", which was La Liga. It now says "earlier in this reply".
+    - **An earlier copy from before midnight** said "As of 23:00", which reads as later today. It now says "As of yesterday at 23:00", as the page already does.
+    - **"11th in Premier League"** now reads "11th in the Premier League" (and "Opened the Premier League", "the Bundesliga"; `football.league_name`).
+    - **`spaceAddress` accepted `#sportsball`** as Sports' own address. Now only `#sports` or `#sports/...`.
+    - **The ticker said "Opened None"** when the model sent no league; it now says "Opened a league" ("Checked a team").
+    - **No eval checked that JARVIS invents no fixture when the service is down.** A new case, `football_service_down`, takes football-data.org away (`Case.football_down`) and asks when Roma play next: the reply must say it couldn't reach the data and name no opponent or time. 3 in 3, and all 10 football cases 30 in 30 (prompt unchanged, `cce493c7d018`).
+  - **Still left:** the Weather "asked again" loop above. Fixing it the same way changes the prompt (a full eval) and `run_tool`, so it waits for the owner.
 
 ---
 
@@ -1558,7 +1558,7 @@ You can now ask JARVIS about football: "When do Roma play next?", "How did Newca
 | Sports, stage 3: the page (section 61) | Done: 816 tests; evals 237/240 (prompt `825d45cfb641`); checked in a demo and live; not yet in Safari or seen in motion |
 | Sports, stage 4: the animations (section 62) | Done: 819 tests; checked in a demo (the kick's timing with a timer standing in for frames, its look from stills); not yet seen at full frame rate or in Safari; no prompt change |
 | Sports, stage 4b: the 3D player (section 63) | Done: 850 tests; three.js 0.170.0 pinned; the model files on this Mac only; checked in a demo with a timer standing in for frames; not yet seen at full frame rate or in Safari |
-| Sports, stage 5: asking JARVIS (section 64) | Done: 899 tests; evals 264/267 (prompt `cce493c7d018`); checked in a demo at full frame rate with the real model and made-up football; not yet in Safari, by voice, or with live data through the tools |
+| Sports, stage 5: asking JARVIS (section 64) | Done: 908 tests; evals 264/267 (prompt `cce493c7d018`); checked in a demo at full frame rate with the real model and made-up football; not yet in Safari, by voice, or with live data through the tools |
 | Other websites (Origin check) | Done: attack shown and then blocked in the real browser, dashboard unaffected, 406 tests (section 36) |
 | Voice input, voice output, voice mode switch | Tested and working |
 | Calendar views (compact agenda, year/month/week/day) | Layout confirmed good; all four views checked in a demo, on Home and in Work (section 51) |

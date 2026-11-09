@@ -904,3 +904,10 @@ def test_going_up_inside_sports_drops_a_waiting_kick():
     assert "sportsDropPending();" in sports.split("function sportsUp() {", 1)[1].split("\n}", 1)[0]
     crumb = sports.split("if (!last) el.addEventListener('click',", 1)[1].split("\n", 1)[0]
     assert "sportsDropPending()" in crumb
+
+
+def test_a_space_address_is_exactly_its_own():
+    """Final review: '#sportsball' also started with '#sports'. Only '#sports' or '#sports/...'."""
+    spaces = (ROOT / "static" / "js" / "spaces.js").read_text()
+    body = spaces.split("function spaceAddress(", 1)[1].split("\n}", 1)[0]
+    assert "=== '#' + space.name" in body and "startsWith('#' + space.name + '/')" in body

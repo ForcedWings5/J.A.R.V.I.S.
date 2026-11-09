@@ -39,7 +39,8 @@ function runSafely(space, what) {
 function spaceAddress(space) {
   let own = null;
   try { if (space.address) own = space.address(); } catch (e) { console.error(`space ${space.name}: address failed`, e); }
-  return typeof own === 'string' && own.toLowerCase().startsWith('#' + space.name) ? own : '#' + space.name;
+  const low = typeof own === 'string' ? own.toLowerCase() : '';
+  return low === '#' + space.name || low.startsWith('#' + space.name + '/') ? own : '#' + space.name;
 }
 
 function switchSpace(name, opts = {}) {

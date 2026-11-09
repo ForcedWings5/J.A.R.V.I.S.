@@ -709,9 +709,31 @@ def test_a_second_show_league_in_one_reply_says_it_was_done():
     events, _ = run(a, "Show me the Premier League.")
     assert [e["type"] for e in events].count("league") == 1
     results = [m["content"] for m in a.messages if isinstance(m, dict) and m["role"] == "tool"]
-    assert results[1] == ("Premier League was opened on the screen by the call before this one "
-                          "in this reply.")
+    assert results[1] == "The Premier League was opened on the screen earlier in this reply."
     # The next reply may open it again: the user may have left it
     a.chat = FakeModel(use(call("show_league", league="premier-league")), say("There, sir."))
     events, _ = run(a, "Show me the Premier League.")
     assert [e["type"] for e in events].count("league") == 1
+
+
+def test_a_repeat_after_another_league_is_still_told_the_truth():
+    """A, B, A in one reply: the third call was told A was opened "by the call before this one",
+    which was B (final review). Now it says "earlier in this reply"."""
+    model = FakeModel(use(call("show_league", league="serie-a")),
+                      use(call("show_league", league="la-liga")),
+                      use(call("show_league", league="serie-a")), say("There, sir."))
+    a = brain.Assistant(chat=model)
+    events, _ = run(a, "Show me Serie A, then La Liga, then Serie A.")
+    assert [e["league"] for e in events if e["type"] == "league"] == ["serie-a", "la-liga"]
+    results = [m["content"] for m in a.messages if isinstance(m, dict) and m["role"] == "tool"]
+    assert results[2] == "Serie A was opened on the screen earlier in this reply."
+
+
+@pytest.mark.parametrize("name, args, text", [
+    ("show_league", {"league": None}, "Opened a league"),
+    ("get_league", {}, "Checked a league"),
+    ("get_team", {"team": None}, "Checked a team"),
+])
+def test_football_ticker_lines_without_a_name(name, args, text):
+    """Final review: a missing league showed "Opened None" in the ticker."""
+    assert brain.describe_step(call(name, **args), "ok")["text"] == text
