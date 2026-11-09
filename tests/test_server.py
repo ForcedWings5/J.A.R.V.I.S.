@@ -884,3 +884,23 @@ def test_no_kick_starts_while_another_switch_plays():
     body = sports.split("async function sportsKickWhenReady(", 1)[1].split("\n}", 1)[0]
     still = body.split("const still =", 1)[1].split(";", 1)[0]
     assert "seq" in still
+
+
+def test_a_league_during_a_switch_waits_for_it():
+    """Final review: a `league` event during the switch out of Sports took the in-Sports path,
+    then leave() dropped it and the `space` event opened the hub. It waits for the switch, as
+    switchSpaceWhenFree does, so it lands after leave() and enter() picks it up."""
+    sports = (ROOT / "static" / "js" / "space-sports.js").read_text()
+    body = sports.split("function sportsShowLeague(", 1)[1].split("\n}", 1)[0]
+    retry = "if (typeof seq !== 'undefined' && seq) { setTimeout(() => sportsShowLeague(slug), 100); return; }"
+    assert retry in body
+    assert body.index(retry) < body.index("sportsPending = { slug")
+
+
+def test_going_up_inside_sports_drops_a_waiting_kick():
+    """Final review: the Back button, Esc and the trail move between levels without a new
+    address, so sportsFollowAddress never ran and JARVIS's kick could still land."""
+    sports = (ROOT / "static" / "js" / "space-sports.js").read_text()
+    assert "sportsDropPending();" in sports.split("function sportsUp() {", 1)[1].split("\n}", 1)[0]
+    crumb = sports.split("if (!last) el.addEventListener('click',", 1)[1].split("\n", 1)[0]
+    assert "sportsDropPending()" in crumb

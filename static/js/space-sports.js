@@ -170,6 +170,9 @@ let sportsPendingToken = 0;
 
 function sportsShowLeague(slug) {
   if (!sportsLeagueInfo(slug)) return;
+  // A switch playing (you pressed 2 just as JARVIS answered): wait for it, as switchSpaceWhenFree
+  // does, so this lands after its leave() and the next enter() takes it (final review)
+  if (typeof seq !== 'undefined' && seq) { setTimeout(() => sportsShowLeague(slug), 100); return; }
   if (currentSpace === 'sports' && sportsLevel() === 'league' && sportsLeague === slug) return;
   // The same league again (the model may ask twice in one turn): already waiting, or being
   // kicked to, so restarting would only cancel the kick under way
@@ -181,6 +184,12 @@ function sportsShowLeague(slug) {
   sportsCancelAnim();
   if (sportsLevel() !== 'football') sportsGo('football');
   sportsKickWhenReady(slug);
+}
+
+// You moved yourself (Back, Esc, the trail, a new address, leaving): JARVIS's kick no longer lands
+function sportsDropPending() {
+  sportsPending = null;
+  ++sportsPendingToken;
 }
 
 async function sportsKickWhenReady(slug) {
@@ -263,13 +272,14 @@ function sportsDrawTrail() {
     const el = document.createElement(last ? 'span' : 'button');
     el.className = last ? 'sp-here' : 'sp-crumb';
     el.textContent = p.text;
-    if (!last) el.addEventListener('click', () => sportsGo(p.level));
+    if (!last) el.addEventListener('click', () => { sportsDropPending(); sportsGo(p.level); });
     sportsTrail.append(el);
   });
   sportsBack.hidden = sportsLevel() === 'hub';
 }
 
 function sportsUp() {
+  sportsDropPending();
   if (sportsLevel() === 'league') sportsGo('football');
   else if (sportsLevel() === 'football') sportsGo('hub');
 }

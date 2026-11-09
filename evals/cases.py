@@ -381,12 +381,12 @@ CASES = [
     # Asked again: in stage 5's demo and first full eval, the same request a second time made
     # JARVIS call show_league 4 times (every round) and never answer, or open nothing. Fixed by
     # a sentence in its description, a fact in its result and a factual result for a repeat in
-    # one reply. A second or third call is harmless (the page ignores a repeat), so the check is
-    # no runaway loop and a reply, not a single call.
+    # one reply. Extra calls are harmless (the page ignores a repeat, and MAX_ROUNDS caps them),
+    # so the check is that it opens the league and answers ("could not finish" is the loop that
+    # never answered), not how many calls it made (final review)
     Case("football_show_again", "Show me the Premier League.",
          before=[("09:00", "Show me the Premier League.")],
-         expect=[("show_league", {"league": "premier-league"})], max_calls={"show_league": 3},
-         excludes=["could not finish"]),
+         expect=[("show_league", {"league": "premier-league"})], excludes=["could not finish"]),
     Case("football_league_mentioned_no_show", "Serie A has had so many draws this season.",
          forbid=["show_league", "open_space"]),
     Case("football_unfollowed_team", "How did Juventus do?",
