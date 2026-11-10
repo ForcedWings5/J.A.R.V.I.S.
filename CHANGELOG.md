@@ -1522,7 +1522,27 @@ You can now ask JARVIS about football: "When do Roma play next?", "How did Newca
     - **`spaceAddress` accepted `#sportsball`** as Sports' own address. Now only `#sports` or `#sports/...`.
     - **The ticker said "Opened None"** when the model sent no league; it now says "Opened a league" ("Checked a team").
     - **No eval checked that JARVIS invents no fixture when the service is down.** A new case, `football_service_down`, takes football-data.org away (`Case.football_down`) and asks when Roma play next: the reply must say it couldn't reach the data and name no opponent or time. 3 in 3, and all 10 football cases 30 in 30 (prompt unchanged, `cce493c7d018`).
-  - **Still left:** the Weather "asked again" loop above. Fixing it the same way changes the prompt (a full eval) and `run_tool`, so it waits for the owner.
+  - **Still left:** the Weather "asked again" loop above. Fixing it the same way changes the prompt (a full eval) and `run_tool`, so it waits for the owner. *Fixed in section 65.*
+
+## 65. Weather: asked again, JARVIS no longer searches in every round
+
+Ask "What's the weather in Paris?" a second time, and JARVIS sometimes called `find_place` in every round of its reply and ended with "Sorry, I could not finish that." It was the same habit as `show_league`'s in section 64, first seen on 2026-11-05. The owner agreed to the design, including the change to `run_tool`.
+
+- **How often, before:** 10 runs of `weather_find_again` (prompt `cce493c7d018`): 2 made 4 calls and never answered, 6 made 2 or 3, 2 made one. The case still passed 10 in 10: it only checked that `find_place` was called.
+- **The eval now catches it:** `weather_find_again` also refuses "could not finish".
+- **The fix, in `run_tool`** (`brain.py`), as for `show_league`:
+  - A second `find_place` in one reply that finds the same place is told a fact, from `weather.asked_already`: "The globe is already asking the user to confirm Paris, France: searching again changes nothing until they answer."
+  - The globe is not sent the matches again.
+  - "The same place" is the place found (its name and position), not the words, so "Paris, France" after "Paris" counts.
+  - The guards for both tools now share one set, `shown_this_reply`, emptied at the start of every reply.
+- **What was measured on the way**, each variant 10 or 20 runs:
+  - **The guard saying "Already asked … earlier in this reply"**: 7 in 10, still 4 runs that searched in every round.
+  - **`find_place`'s own instruction rewritten as a fact** ("the user can close the ping at any time …"), as worked for `show_league`: 0 in 10. JARVIS went back to "I'm still awaiting your confirmation" with nothing on screen, the bug that instruction was added for in section 58. So it stays word for word.
+  - **The instruction narrowed to "in a later message"**: no loops, but 2 runs in 20 called `get_forecast` instead of searching again.
+  - **The final version** (the instruction unchanged, the guard saying searching again changes nothing): 20 in 20, at most 2 calls, every run answered.
+- **Tests:** a new one (`test_a_second_find_place_for_the_same_place_in_one_reply_says_it_was_done`) failed before the guard. `python -m pytest -q`: 909 passed. `ruff check .`: clean.
+- **Full eval after: 270/270**, prompt `cce493c7d018` (unchanged: only a tool result and code changed). Before, on the same prompt: 264/267 plus 3/3 for the case added later (section 64). The first run with every case passing. Median reply 3.1 s, as before.
+- **Not checked:** the real app (the fix is all in the server: the page is simply not sent the second search), Safari and voice.
 
 ---
 
@@ -1559,6 +1579,7 @@ You can now ask JARVIS about football: "When do Roma play next?", "How did Newca
 | Sports, stage 4: the animations (section 62) | Done: 819 tests; checked in a demo (the kick's timing with a timer standing in for frames, its look from stills); not yet seen at full frame rate or in Safari; no prompt change |
 | Sports, stage 4b: the 3D player (section 63) | Done: 850 tests; three.js 0.170.0 pinned; the model files on this Mac only; checked in a demo with a timer standing in for frames; not yet seen at full frame rate or in Safari |
 | Sports, stage 5: asking JARVIS (section 64) | Done: 908 tests; evals 264/267 (prompt `cce493c7d018`); checked in a demo at full frame rate with the real model and made-up football; not yet in Safari, by voice, or with live data through the tools |
+| Weather: asked again (section 65) | Done: 909 tests; evals 270/270 (prompt `cce493c7d018`); checked in the evals only, not yet in the real app |
 | Other websites (Origin check) | Done: attack shown and then blocked in the real browser, dashboard unaffected, 406 tests (section 36) |
 | Voice input, voice output, voice mode switch | Tested and working |
 | Calendar views (compact agenda, year/month/week/day) | Layout confirmed good; all four views checked in a demo, on Home and in Work (section 51) |
