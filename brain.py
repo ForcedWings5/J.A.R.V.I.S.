@@ -301,7 +301,7 @@ class Assistant:
         self.show_space = None      # a space the last tool asked the page to show, if any
         self.show_places = None     # places find_place asked the globe to show, if any
         self.show_league = None     # a league show_league asked the page to open, if any
-        self.shown_leagues = set()  # the leagues opened in the current reply
+        self.shown_this_reply = set()  # leagues and places already put on screen in this reply
         self.last_prompt_tokens = None  # tokens the model read on its last call (from Ollama)
         self.lock = threading.Lock()
 
@@ -327,6 +327,14 @@ class Assistant:
             self.show_space = result.name
             return result.reply
         if isinstance(result, tools.ShowPlaces):
+            # Asked again, the model searched in every round and never answered (CHANGELOG
+            # section 65), as with show_league: the same place twice in one reply is told so.
+            # By the place found, not the words, so "Paris, France" after "Paris" counts too
+            first = result.matches[0]
+            key = ("place", first["name"], first["lat"], first["lon"])
+            if key in self.shown_this_reply:
+                return weather.asked_already(first)
+            self.shown_this_reply.add(key)
             # The globe spins to the first match and the user confirms it on screen (/weather/
             # confirm); the model hears only the names (weather.find_place)
             self.show_space = "weather"
@@ -335,10 +343,10 @@ class Assistant:
         if isinstance(result, tools.ShowLeague):
             # Asked again, the model called show_league 4 times in one reply and never answered
             # (stage 5's evals): the same league twice in one reply is told so, as a fact
-            if result.league in self.shown_leagues:
+            if ("league", result.league) in self.shown_this_reply:
                 name = football.league_name(result.league)
                 return f"{name[0].upper()}{name[1:]} was opened on the screen earlier in this reply."
-            self.shown_leagues.add(result.league)
+            self.shown_this_reply.add(("league", result.league))
             # Sports opens at the globe and plays the kick to this league (the `league` event)
             self.show_space = "sports"
             self.show_league = result.league
@@ -447,7 +455,7 @@ class Assistant:
                 self.confirm = None
                 self.show_space = None
                 self.show_league = None
-                self.shown_leagues = set()  # leagues show_league opened in this reply
+                self.shown_this_reply = set()  # see run_tool: a repeat in one reply is told so
                 steps = []
                 step_keys = []      # (tool, what it was about) for each step, see _mark_corrected
                 self.messages[0]["content"] = build_system_prompt()

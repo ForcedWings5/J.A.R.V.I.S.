@@ -449,6 +449,12 @@ def _place_words(place: dict) -> str:
     return f"{place['name']}, {second}" if second else place["name"]
 
 
+def asked_already(match: dict) -> str:
+    """What a second search for the same place in one reply hears (brain.run_tool), so the
+    model stops searching instead of trying again every round (CHANGELOG section 65)."""
+    return f"Already asked the user to confirm {_place_words(match)} on the globe earlier in this reply."
+
+
 def _match_words(match: dict) -> str:
     """'Paris, Texas, United States': enough for the model to tell the matches apart."""
     return ", ".join(p for p in (match["name"], match["region"], match["country"]) if p)

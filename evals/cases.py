@@ -339,11 +339,12 @@ CASES = [
     Case("weather_find_paris_texas", "What's the weather like in Paris, Texas?",
          expect=[("find_place", {"query": contains("texas")})], forbid=["get_forecast"]),
     # Asked again (after Esc on the ping, or a reload): it must look again, not claim the
-    # ping is still waiting (found in stage 4's demo)
+    # ping is still waiting (found in stage 4's demo), and must answer: on 2026-11-10, 2 runs in
+    # 10 called find_place in every round and said "could not finish" (CHANGELOG section 65)
     Case("weather_find_again", "What's the weather in Paris?",
          before=[("09:00", "What's the weather in Paris?")],
          expect=[("find_place", {"query": contains("paris")})], forbid=["get_forecast"],
-         excludes=TEMPERATURE_WORDS),
+         excludes=TEMPERATURE_WORDS + ["could not finish"]),
     Case("weather_rain_tomorrow_there", "Will it rain there tomorrow?", place=PARIS,
          space="weather", expect=[("get_forecast", {"day": TUE})], forbid=["find_place"],
          includes_any=["60"]),

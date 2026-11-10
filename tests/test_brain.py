@@ -737,3 +737,23 @@ def test_a_repeat_after_another_league_is_still_told_the_truth():
 def test_football_ticker_lines_without_a_name(name, args, text):
     """Final review: a missing league showed "Opened None" in the ticker."""
     assert brain.describe_step(call(name, **args), "ok")["text"] == text
+
+
+def test_a_second_find_place_for_the_same_place_in_one_reply_says_it_was_done(monkeypatch):
+    """Asked about Paris again, JARVIS called find_place in every round and said "could not
+    finish" (2 runs in 10, CHANGELOG section 65), as it did with show_league. A second search
+    finding the same place in one reply gets a fact, and the globe is not sent it again; the
+    same place in another words ("Paris, France") counts as the same."""
+    weather_data.serve(monkeypatch, geo=weather_data.geocode(weather_data.PARIS_FR))
+    model = FakeModel(use(call("find_place", query="Paris")),
+                      use(call("find_place", query="Paris, France")), say("Please confirm, sir."))
+    a = brain.Assistant(chat=model)
+    events, _ = run(a, "What's the weather in Paris?")
+    assert [e["type"] for e in events].count("places") == 1
+    results = [m["content"] for m in a.messages if isinstance(m, dict) and m["role"] == "tool"]
+    assert results[1] == ("Already asked the user to confirm Paris, France on the globe earlier "
+                          "in this reply.")
+    # The next reply may search again: the user may have closed the ping
+    a.chat = FakeModel(use(call("find_place", query="Paris")), say("Please confirm, sir."))
+    events, _ = run(a, "What's the weather in Paris?")
+    assert [e["type"] for e in events].count("places") == 1
