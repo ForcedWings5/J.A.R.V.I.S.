@@ -751,8 +751,8 @@ def test_a_second_find_place_for_the_same_place_in_one_reply_says_it_was_done(mo
     events, _ = run(a, "What's the weather in Paris?")
     assert [e["type"] for e in events].count("places") == 1
     results = [m["content"] for m in a.messages if isinstance(m, dict) and m["role"] == "tool"]
-    assert results[1] == ("Already asked the user to confirm Paris, France on the globe earlier "
-                          "in this reply.")
+    assert results[1] == ("The globe is already asking the user to confirm Paris, France: "
+                          "searching again changes nothing until they answer.")
     # The next reply may search again: the user may have closed the ping
     a.chat = FakeModel(use(call("find_place", query="Paris")), say("Please confirm, sir."))
     events, _ = run(a, "What's the weather in Paris?")
